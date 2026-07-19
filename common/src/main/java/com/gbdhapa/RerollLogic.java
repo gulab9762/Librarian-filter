@@ -450,7 +450,7 @@ public class RerollLogic {
         }
         
         // Spawn villager
-        Villager villager = new Villager(net.minecraft.world.entity.EntityTypes.VILLAGER, level);
+        Villager villager = new Villager(net.minecraft.world.entity.EntityType.VILLAGER, level);
         villager.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
         level.addFreshEntity(villager);
 

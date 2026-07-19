@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import com.gbdhapa.EnchantmentDescriptions;
+import com.gbdhapa.EnchantmentInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,16 +37,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
     @Unique
     private static final ItemStack ENCHANTED_BOOK_STACK = new ItemStack(Items.ENCHANTED_BOOK);
 
-    @Unique
-    private static class EnchantmentInfo {
-        final String path;
-        final int maxLevel;
 
-        EnchantmentInfo(String path, int maxLevel) {
-            this.path = path;
-            this.maxLevel = maxLevel;
-        }
-    }
 
     @Unique
     private static final List<EnchantmentInfo> ALL_ENCHANTMENTS = List.of(
