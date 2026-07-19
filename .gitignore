@@ -1,40 +1,58 @@
-# gradle
-
+# ── Gradle ────────────────────────────────────────────────────────────────────
 .gradle/
+.gradle-run/
 build/
 out/
 classes/
 
-# eclipse
+# ── Loom / Architectury ───────────────────────────────────────────────────────
+# Project-level loom cache (rebuilt automatically)
+**/loom-cache/
+# Loom lock files
+**/*.lock
 
-*.launch
+# ── Minecraft run directories ─────────────────────────────────────────────────
+run/
+runs/
+# Per-subproject run dirs
+fabric/run/
+neoforge/run/
+quilt/run/
 
-# idea
-
+# ── IDE – IntelliJ IDEA ───────────────────────────────────────────────────────
 .idea/
 *.iml
 *.ipr
 *.iws
 
-# vscode
-
+# ── IDE – Eclipse ────────────────────────────────────────────────────────────
+*.launch
 .settings/
-.vscode/
-bin/
 .classpath
 .project
 
-# macos
+# ── IDE – VS Code / Antigravity IDE ──────────────────────────────────────────
+.vscode/
+bin/
 
+# ── OS files ─────────────────────────────────────────────────────────────────
+# macOS
 *.DS_Store
+.AppleDouble
+.LSOverride
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+# Linux
+*~
 
-# fabric
-
-run/
-
-# java
-
+# ── Java crash / profiling logs ───────────────────────────────────────────────
 hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# ── Local test / scratch files ────────────────────────────────────────────────
+test_build.gradle
