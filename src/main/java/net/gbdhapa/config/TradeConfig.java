@@ -10,6 +10,7 @@ import java.nio.file.Path;
 public class TradeConfig {
     public  boolean enableEachLevelReroll = true;   // toggle whole feature
     public  boolean enableReroll = true;   // toggle whole feature
+    public  boolean allowTreasureEnchantments = false;
     private static final Path FILE = FabricLoader.getInstance()
             .getConfigDir()
             .resolve("trade_config.json");

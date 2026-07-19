@@ -59,7 +59,8 @@ public class VillagerTrade implements ModInitializer {
         ModPackets.register();
         PacketHandlers.register();
         registerEvent();
-//        CountCommand.register();
+        CountCommand.register();
+        RerollCommand.register();
     }
 
     private void registerEvent() {
@@ -232,6 +233,11 @@ public class VillagerTrade implements ModInitializer {
 //                System.out.println("✅ Retry count: " + recycleCount);
                 // --- Check trades ---
                 MerchantOffers offers = villager.getOffers();
+
+                if (TradeConfig.INSTANCE.allowTreasureEnchantments && profession.is(VillagerProfession.LIBRARIAN)) {
+                    injectTreasureEnchantments(villager, offers);
+                }
+
                 for (MerchantOffer trade : offers) {
                     // Only look at enchanted books
                     if (profession.is(VillagerProfession.LIBRARIAN)) {
@@ -270,13 +276,53 @@ public class VillagerTrade implements ModInitializer {
 
     private static boolean checkIfPlayerHasTradedLastOffers(MerchantOffers originalOffers) {
         int offersSize = originalOffers.size();
-        if (offersSize % 2 == 0) {
+        if (offersSize == 0) return false;
+        if (offersSize % 2 == 0 && offersSize >= 2) {
             MerchantOffer secondLast = originalOffers.get(offersSize - 2);
             MerchantOffer last = originalOffers.get(offersSize - 1);
             return secondLast.getUses() > 0 || last.getUses() > 0;
         } else {
             MerchantOffer last = originalOffers.get(offersSize - 1);
             return last.getUses() > 0;
+        }
+    }
+
+    private static void injectTreasureEnchantments(Villager villager, MerchantOffers offers) {
+        var registry = villager.level().registryAccess()
+                .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+        List<net.minecraft.core.Holder.Reference<Enchantment>> allEnchants = registry.listElements().toList();
+        if (allEnchants.isEmpty())
+            return;
+
+        net.minecraft.util.RandomSource random = villager.getRandom();
+        for (int i = 0; i < offers.size(); i++) {
+            MerchantOffer trade = offers.get(i);
+            if (trade.getResult().getItem() == Items.ENCHANTED_BOOK) {
+                net.minecraft.core.Holder.Reference<Enchantment> holder = allEnchants.get(random.nextInt(allEnchants.size()));
+                Enchantment enchantment = holder.value();
+
+                int minLvl = enchantment.getMinLevel();
+                int maxLvl = enchantment.getMaxLevel();
+                int l = net.minecraft.util.Mth.nextInt(random, Math.max(minLvl, 1), Math.max(maxLvl, 1));
+                ItemStack itemstack = net.minecraft.world.item.enchantment.EnchantmentHelper.createBook(new net.minecraft.world.item.enchantment.EnchantmentInstance(holder, l));
+
+                int cost = 2 + random.nextInt(5 + l * 10) + 3 * l;
+                if (holder.is(net.minecraft.tags.EnchantmentTags.DOUBLE_TRADE_PRICE)) {
+                    cost *= 2;
+                }
+                if (cost > 64) {
+                    cost = 64;
+                }
+
+                offers.set(i, new MerchantOffer(
+                        new net.minecraft.world.item.trading.ItemCost(Items.EMERALD, cost),
+                        Optional.of(new net.minecraft.world.item.trading.ItemCost(Items.BOOK)),
+                        itemstack,
+                        12,
+                        trade.getXp(),
+                        0.2F
+                ));
+            }
         }
     }
 

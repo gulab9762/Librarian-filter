@@ -39,6 +39,22 @@ public class TradeConfigScreen extends Screen {
                         .size(200, 20)
                         .build()
         );
+
+        this.addRenderableWidget(
+                Button.builder(Component.literal(getToggleText2()), btn -> {
+                            TradeConfig.INSTANCE.allowTreasureEnchantments =
+                                    !TradeConfig.INSTANCE.allowTreasureEnchantments;
+
+                            TradeConfig.save();
+                            btn.setMessage(Component.literal(getToggleText2()));
+                        }).pos(this.width / 2 - 75, this.height / 2 + 20)
+                        .size(200, 20)
+                        .build()
+        );
+    }
+
+    private String getToggleText2() {
+        return "Allow Treasure Enchants: " + (TradeConfig.INSTANCE.allowTreasureEnchantments ? "ON" : "OFF");
     }
 
     private String getToggleText1() {
