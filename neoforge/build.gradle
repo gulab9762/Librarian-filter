@@ -1,0 +1,40 @@
+plugins {
+    id 'net.neoforged.moddev'
+}
+
+base {
+    archivesName = "librarian-filter-neoforge-${project.minecraft_version}"
+}
+
+neoForge {
+    version = project.neoforge_version
+
+    runs {
+        client {
+            client()
+        }
+    }
+
+    mods {
+        "librarian_filter" {
+            sourceSet sourceSets.main
+            sourceSet project(":common").sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    compileOnly project(":common")
+}
+
+tasks.withType(Jar).configureEach {
+    from project(":common").sourceSets.main.output
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand "version": project.version
+    }
+}

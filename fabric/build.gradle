@@ -1,0 +1,53 @@
+plugins {
+	id 'dev.architectury.loom'
+	id 'maven-publish'
+}
+
+base {
+	archivesName = "librarian-filter-fabric-${project.minecraft_version}"
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"librarian-filter" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	
+	mappings loom.officialMojangMappings()
+	implementation project(":common")
+	include project(":common")
+	
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+	
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}

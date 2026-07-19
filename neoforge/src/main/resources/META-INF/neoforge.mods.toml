@@ -1,0 +1,29 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="All Rights Reserved"
+
+[[mixins]]
+config="librarian-filter.mixins.json"
+
+[[mods]]
+modId="librarian_filter"
+version="${version}"
+displayName="Easy Villager Trade Reroll"
+authors="gbdhapa"
+description='''
+A mod that allows you to reroll villager trades easily using signs.
+'''
+
+[[dependencies.librarian_filter]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.1,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.librarian_filter]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21.1,)"
+    ordering="NONE"
+    side="BOTH"
