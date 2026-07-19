@@ -42,7 +42,10 @@ public class EnchantmentDescriptions {
         Map.entry("smite", "Increases damage to undead mobs (zombies, skeletons, etc.)."),
         Map.entry("sweeping_edge", "Increases sweeping attack damage."),
         Map.entry("thorns", "Damages attackers."),
-        Map.entry("unbreaking", "Decreases durability usage chance.")
+        Map.entry("unbreaking", "Decreases durability usage chance."),
+        Map.entry("soul_speed", "Increases walking speed on soul sand and soul soil."),
+        Map.entry("swift_sneak", "Increases movement speed while sneaking."),
+        Map.entry("wind_burst", "Emits a wind burst that launches the attacker upward upon landing a hit.")
     );
 
     public static String get(String path) {

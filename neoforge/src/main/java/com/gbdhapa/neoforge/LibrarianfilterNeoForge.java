@@ -41,6 +41,7 @@ public class LibrarianfilterNeoForge {
             TradeConfig.INSTANCE.enableEachLevelReroll = payload.enableEachLevelReroll();
             TradeConfig.INSTANCE.disableTradeRebalance = payload.disableTradeRebalance();
             TradeConfig.INSTANCE.enableSignSuggestions = payload.enableSignSuggestions();
+            TradeConfig.INSTANCE.allowTreasureEnchantments = payload.allowTreasureEnchantments();
         });
 
         registrar.playToServer(TradeConfigUpdatePayload.ID, TradeConfigUpdatePayload.CODEC, (payload, context) -> {
@@ -53,11 +54,12 @@ public class LibrarianfilterNeoForge {
                     TradeConfig.INSTANCE.enableEachLevelReroll = payload.enableEachLevelReroll();
                     TradeConfig.INSTANCE.disableTradeRebalance = payload.disableTradeRebalance();
                     TradeConfig.INSTANCE.enableSignSuggestions = payload.enableSignSuggestions();
+                    TradeConfig.INSTANCE.allowTreasureEnchantments = payload.allowTreasureEnchantments();
                     TradeConfig.save();
 
                     TradeConfig.applyTradeRebalanceOverride(server);
 
-                    PacketDistributor.sendToAllPlayers(new TradeConfigSyncPayload(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions()));
+                    PacketDistributor.sendToAllPlayers(new TradeConfigSyncPayload(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
                 }
             });
         });
@@ -71,7 +73,8 @@ public class LibrarianfilterNeoForge {
                             TradeConfig.INSTANCE.enableReroll,
                             TradeConfig.INSTANCE.enableEachLevelReroll,
                             TradeConfig.INSTANCE.disableTradeRebalance,
-                            TradeConfig.INSTANCE.enableSignSuggestions
+                            TradeConfig.INSTANCE.enableSignSuggestions,
+                            TradeConfig.INSTANCE.allowTreasureEnchantments
                     ));
                 }
             });
@@ -87,8 +90,6 @@ public class LibrarianfilterNeoForge {
 
     private void registerCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("reroll")
-                .then(Commands.literal("setup")
-                        .executes(context -> RerollLogic.executeSetup(context.getSource())))
                 .then(Commands.literal("config")
                         .requires(source -> {
                             try {
@@ -104,13 +105,14 @@ public class LibrarianfilterNeoForge {
                                     TradeConfig.INSTANCE.enableReroll,
                                     TradeConfig.INSTANCE.enableEachLevelReroll,
                                     TradeConfig.INSTANCE.disableTradeRebalance,
-                                    TradeConfig.INSTANCE.enableSignSuggestions
+                                    TradeConfig.INSTANCE.enableSignSuggestions,
+                            TradeConfig.INSTANCE.allowTreasureEnchantments
                             ));
                             return 1;
                         })
                         .then(Commands.literal("toggle")
                                 .then(Commands.argument("option", com.mojang.brigadier.arguments.StringArgumentType.word())
-                                        .suggests((context, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(new String[]{"enableReroll", "enableEachLevelReroll", "disableTradeRebalance", "enableSignSuggestions"}, builder))
+                                        .suggests((context, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(new String[]{"enableReroll", "enableEachLevelReroll", "disableTradeRebalance", "enableSignSuggestions", "allowTreasureEnchantments"}, builder))
                                         .executes(context -> {
                                             String option = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "option");
                                             boolean newValue = false;
@@ -131,6 +133,10 @@ public class LibrarianfilterNeoForge {
                                                     TradeConfig.INSTANCE.enableSignSuggestions = !TradeConfig.INSTANCE.enableSignSuggestions;
                                                     newValue = TradeConfig.INSTANCE.enableSignSuggestions;
                                                     break;
+                                                case "allowTreasureEnchantments":
+                                                    TradeConfig.INSTANCE.allowTreasureEnchantments = !TradeConfig.INSTANCE.allowTreasureEnchantments;
+                                                    newValue = TradeConfig.INSTANCE.allowTreasureEnchantments;
+                                                    break;
                                                 default:
                                                     context.getSource().sendFailure(net.minecraft.network.chat.Component.literal("Unknown config option: " + option));
                                                     return 0;
@@ -140,7 +146,8 @@ public class LibrarianfilterNeoForge {
                                                     TradeConfig.INSTANCE.enableReroll,
                                                     TradeConfig.INSTANCE.enableEachLevelReroll,
                                                     TradeConfig.INSTANCE.disableTradeRebalance,
-                                                    TradeConfig.INSTANCE.enableSignSuggestions
+                                                    TradeConfig.INSTANCE.enableSignSuggestions,
+                                                    TradeConfig.INSTANCE.allowTreasureEnchantments
                                             ));
                                             if (option.equals("disableTradeRebalance")) {
                                                 TradeConfig.applyTradeRebalanceOverride(context.getSource().getServer());
@@ -160,12 +167,12 @@ public class LibrarianfilterNeoForge {
                                         var registry = source.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                                         java.util.List<String> paths = registry.listElementIds().toList().stream()
                                                 .map(key -> key.identifier().getPath())
-                                                .filter(path -> !path.equals("soul_speed") && !path.equals("swift_sneak") && !path.equals("wind_burst"))
+                                                .filter(path -> TradeConfig.INSTANCE.allowTreasureEnchantments || (!path.equals("soul_speed") && !path.equals("swift_sneak") && !path.equals("wind_burst")))
                                                 .toList();
                                         return net.minecraft.commands.SharedSuggestionProvider.suggest(paths, builder);
                                     } catch (Exception e) {
                                         java.util.List<String> paths = com.gbdhapa.EnchantmentDescriptions.DESCRIPTIONS.keySet().stream()
-                                                .filter(path -> !path.equals("soul_speed") && !path.equals("swift_sneak") && !path.equals("wind_burst"))
+                                                .filter(path -> TradeConfig.INSTANCE.allowTreasureEnchantments || (!path.equals("soul_speed") && !path.equals("swift_sneak") && !path.equals("wind_burst")))
                                                 .toList();
                                         return net.minecraft.commands.SharedSuggestionProvider.suggest(paths, builder);
                                     }
@@ -179,6 +186,15 @@ public class LibrarianfilterNeoForge {
                                     }
                                 })
                         )
+                )
+                .then(Commands.literal("setup")
+                        .executes(context -> {
+                            try {
+                                return RerollLogic.executeSetup(context.getSource());
+                            } catch (Exception e) {
+                                return 0;
+                            }
+                        })
                 )
         );
     }

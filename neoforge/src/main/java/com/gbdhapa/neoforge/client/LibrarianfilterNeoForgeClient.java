@@ -28,16 +28,18 @@ public class LibrarianfilterNeoForgeClient {
         if (event.getPlayer() != null && event.getPlayer().level().enabledFeatures().contains(net.minecraft.world.flag.FeatureFlags.TRADE_REBALANCE)) {
             Minecraft.getInstance().execute(() -> {
                 if (Minecraft.getInstance().player != null) {
-                    var msg = net.minecraft.network.chat.Component.literal("§e[Librarian Filter] Warning: Villager Trade Rebalance experimental feature is enabled in this world! Villager book trades are biome-dependent. ")
-                        .append(net.minecraft.network.chat.Component.literal("[Click here to disable]")
-                            .withStyle(style -> style
-                                .withColor(net.minecraft.ChatFormatting.RED)
-                                .withUnderlined(true)
-                                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/reroll config toggle disableTradeRebalance"))
-                                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
-                            )
-                        );
-                    Minecraft.getInstance().player.sendSystemMessage(msg);
+                    net.minecraft.network.chat.Component warning = net.minecraft.network.chat.Component.literal("[Librarian Filter] Warning: Villager Trade Rebalance experimental feature is enabled in this world! Villager book trades are biome-dependent. ")
+                            .withStyle(net.minecraft.ChatFormatting.YELLOW)
+                            .append(
+                                    net.minecraft.network.chat.Component.literal("[Click here to disable]")
+                                            .withStyle(style -> style
+                                                    .withColor(net.minecraft.ChatFormatting.RED)
+                                                    .withUnderlined(true)
+                                                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/reroll config toggle disableTradeRebalance"))
+                                                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
+                                            )
+                            );
+                    Minecraft.getInstance().player.sendSystemMessage(warning);
                 }
             });
         }
@@ -56,7 +58,7 @@ public class LibrarianfilterNeoForgeClient {
     public static void registerClientPayloads(RegisterPayloadHandlersEvent event) {
         event.registrar("1.0.1").playToClient(OpenConfigScreenPayload.ID, OpenConfigScreenPayload.CODEC, (payload, context) -> {
             context.enqueueWork(() -> {
-                Minecraft.getInstance().setScreenAndShow(new NeoForgeTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions()));
+                Minecraft.getInstance().setScreenAndShow(new NeoForgeTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
             });
         });
     }
