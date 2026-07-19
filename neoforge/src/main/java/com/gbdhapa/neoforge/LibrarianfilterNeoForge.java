@@ -187,6 +187,15 @@ public class LibrarianfilterNeoForge {
                                 })
                         )
                 )
+                .then(Commands.literal("setup")
+                        .executes(context -> {
+                            try {
+                                return RerollLogic.executeSetup(context.getSource());
+                            } catch (Exception e) {
+                                return 0;
+                            }
+                        })
+                )
         );
     }
 

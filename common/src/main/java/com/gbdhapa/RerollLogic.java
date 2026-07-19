@@ -421,6 +421,53 @@ public class RerollLogic {
         return count;
     }
 
+    public static int executeSetup(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        net.minecraft.server.level.ServerPlayer player = source.getPlayerOrException();
+        if (!player.isCreative()) {
+            source.sendFailure(Component.literal("This command can only be used in Creative mode."));
+            return 0;
+        }
+
+        ServerLevel level = source.getLevel();
+        BlockPos playerPos = player.blockPosition();
+        Direction facing = player.getDirection();
+        BlockPos center = playerPos.relative(facing, 3); // 3 blocks in front of the player
+
+        // Build a small 3x3 interior glass room
+        for (int x = -2; x <= 2; x++) {
+            for (int y = -1; y <= 3; y++) {
+                for (int z = -2; z <= 2; z++) {
+                    BlockPos pos = center.offset(x, y, z);
+                    if (y == -1) {
+                        level.setBlock(pos, Blocks.STONE.defaultBlockState(), 3); // Floor
+                    } else if (x == -2 || x == 2 || z == -2 || z == 2 || y == 3) {
+                        level.setBlock(pos, Blocks.GLASS.defaultBlockState(), 3); // Walls & Roof
+                    } else {
+                        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3); // Interior
+                    }
+                }
+            }
+        }
+        
+        // Spawn villager
+        Villager villager = new Villager(net.minecraft.world.entity.EntityTypes.VILLAGER, level);
+        villager.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
+        level.addFreshEntity(villager);
+
+        // Place Lectern inside the room, in front of the villager
+        BlockPos lecternPos = center.relative(facing.getOpposite(), 1);
+        level.setBlock(lecternPos, Blocks.LECTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LecternBlock.FACING, facing), 3);
+
+        // Place Sign attached to the front of the Lectern
+        BlockPos signPos = lecternPos.relative(facing.getOpposite());
+        level.setBlock(signPos, 
+Blocks.OAK_WALL_SIGN.defaultBlockState().setValue(net.minecraft.world.level.block.WallSignBlock.FACING, 
+facing.getOpposite()), 3);
+
+        source.sendSuccess(() -> Component.literal("§aSetup complete! A small room with a villager and lectern has been generated."), true);
+        return 1;
+    }
+
     public record TradeFilter(String filterName, int enchLevel, int price) {
     }
 
