@@ -12,6 +12,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
@@ -22,6 +24,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
@@ -42,6 +46,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class RerollLogic {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RerollLogic.class);
     private static final HashMap<UUID, Map<BlockPos, Long>> cooldownMap = new HashMap<>();
     private static final long COOLDOWN_TIME = 1000;
     private static final int VILLAGER_SEARCH_RADIUS = 128;
@@ -63,13 +68,19 @@ public class RerollLogic {
             return InteractionResult.PASS;
         }
         List<TradeFilter> filters = getEnchFilters(signTexts);
+        LOGGER.info("Reroll requested by player {}. Found filters: {}. allowTreasureEnchantments: {}",
+                player.getName().getString(), filters, TradeConfig.INSTANCE.allowTreasureEnchantments);
         if (!filters.isEmpty() && world instanceof ServerLevel) {
             Villager villager = getVillagerForWorkstation(player, (ServerLevel) world, clickedPos);
             if (villager != null) {
+                LOGGER.info("Found villager for workstation. Starting reroll process...");
                 FilterResult filterResult = filterTrade(villager, filters);
+                LOGGER.info("Reroll process finished with result: {}", filterResult);
                 villager.refreshBrain((ServerLevel) world);
                 spawnParticles((ServerLevel) world, filterResult, villager, clickedPos);
                 cooldownMap.put(playerUUID, Map.of(clickedPos, currentTime));
+            } else {
+                LOGGER.info("No villager found for the given workstation.");
             }
         }
         return InteractionResult.PASS;
@@ -129,7 +140,8 @@ public class RerollLogic {
             if (PoiTypes.hasPoi(blockState)) {
                 SignBlockEntity signEntity = getAttachedSign(world, clickedPos);
                 if (signEntity != null) {
-                    return Arrays.stream(signEntity.getFrontText().getMessages(false)).map(Component::getString).toList();
+                    return Arrays.stream(signEntity.getFrontText().getMessages(false)).map(Component::getString)
+                            .toList();
                 }
             }
         }
@@ -181,6 +193,11 @@ public class RerollLogic {
 
             recycleCount++;
             MerchantOffers offers = villager.getOffers();
+
+            if (TradeConfig.INSTANCE.allowTreasureEnchantments && profession.is(VillagerProfession.LIBRARIAN)) {
+                injectTreasureEnchantments(villager, offers);
+            }
+
             for (MerchantOffer trade : offers) {
                 if (profession.is(VillagerProfession.LIBRARIAN)) {
                     if (trade.getResult().getItem() == Items.ENCHANTED_BOOK) {
@@ -209,7 +226,8 @@ public class RerollLogic {
     }
 
     private static boolean checkIfPlayerHasTradedLastOffers(MerchantOffers originalOffers) {
-        if (originalOffers == null || originalOffers.isEmpty()) return false;
+        if (originalOffers == null || originalOffers.isEmpty())
+            return false;
         int offersSize = originalOffers.size();
         if (offersSize % 2 == 0 && offersSize >= 2) {
             return originalOffers.get(offersSize - 2).getUses() > 0 || originalOffers.get(offersSize - 1).getUses() > 0;
@@ -217,8 +235,53 @@ public class RerollLogic {
         return originalOffers.get(offersSize - 1).getUses() > 0;
     }
 
+    private static void injectTreasureEnchantments(Villager villager, MerchantOffers offers) {
+        var registry = villager.level().registryAccess()
+                .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+        List<Holder.Reference<Enchantment>> allEnchants = registry.listElements().toList();
+        if (allEnchants.isEmpty())
+            return;
+
+        net.minecraft.util.RandomSource random = villager.getRandom();
+        for (int i = 0; i < offers.size(); i++) {
+            MerchantOffer trade = offers.get(i);
+            if (trade.getResult().getItem() == Items.ENCHANTED_BOOK) {
+                Holder.Reference<Enchantment> holder = allEnchants.get(random.nextInt(allEnchants.size()));
+                Enchantment enchantment = holder.value();
+
+                int minLvl = enchantment.getMinLevel();
+                int maxLvl = enchantment.getMaxLevel();
+                int l = net.minecraft.util.Mth.nextInt(random, Math.max(minLvl, 1), Math.max(maxLvl, 1));
+                ItemStack itemstack = EnchantmentHelper.createBook(new EnchantmentInstance(holder, l));
+
+                int cost = 2 + random.nextInt(5 + l * 10) + 3 * l;
+                if (holder.is(net.minecraft.tags.EnchantmentTags.DOUBLE_TRADE_PRICE)) {
+                    cost *= 2;
+                }
+                if (cost > 64)
+                    cost = 64;
+
+                // String enchPath = holder.unwrapKey().map(k ->
+                // k.identifier().getPath()).orElse("unknown");
+                // LOGGER.info("Injected treasure enchantment: {} level {}", enchPath, l);
+
+                MerchantOffer newOffer = new MerchantOffer(
+                        new net.minecraft.world.item.trading.ItemCost(Items.EMERALD, cost),
+                        Optional.of(new net.minecraft.world.item.trading.ItemCost(Items.BOOK)),
+                        itemstack,
+                        trade.getUses(),
+                        trade.getMaxUses(),
+                        trade.getXp(),
+                        trade.getPriceMultiplier(),
+                        trade.getDemand());
+                offers.set(i, newOffer);
+            }
+        }
+    }
+
     private static FilterResult filterEnchantmentBook(List<TradeFilter> filters, MerchantOffer trade) {
-        ItemEnchantments enchantments = trade.getResult().getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
+        ItemEnchantments enchantments = trade.getResult().getOrDefault(DataComponents.STORED_ENCHANTMENTS,
+                ItemEnchantments.EMPTY);
         for (var entry : enchantments.entrySet()) {
             Holder<Enchantment> enchHolder = entry.getKey();
             int enchBookLevel = entry.getIntValue();
@@ -226,9 +289,15 @@ public class RerollLogic {
 
             for (TradeFilter filter : filters) {
                 int expectedLevel = filter.enchLevel == 0 ? enchHolder.value().getMaxLevel() : filter.enchLevel;
-                if (enchName.toLowerCase().startsWith(filter.filterName.toLowerCase()) && enchBookLevel == expectedLevel) {
-                    if (filter.price == 0 || trade.getCostA().getCount() <= filter.price) {
-                        return FilterResult.SUCCESS;
+                if (enchName.toLowerCase().startsWith(filter.filterName.toLowerCase())) {
+                    if (enchBookLevel == expectedLevel) {
+                        if (filter.price == 0 || trade.getCostA().getCount() <= filter.price) {
+                            return FilterResult.SUCCESS;
+                        }
+                    } else {
+                        // Log a warning or info if the name matches but level is wrong, to help debug!
+                        LOGGER.info("Found matching enchantment {} but level was {} (expected {})", enchName,
+                                enchBookLevel, expectedLevel);
                     }
                 }
             }
@@ -238,15 +307,18 @@ public class RerollLogic {
 
     private static FilterResult filterTrades(List<TradeFilter> filters, MerchantOffer trade) {
         String sellItemName = trade.getResult().getItemName().getString().toLowerCase();
-        if (filters.stream().anyMatch(f -> sellItemName.contains(formatFilterName(f)))) return FilterResult.SUCCESS;
-        
+        if (filters.stream().anyMatch(f -> sellItemName.contains(formatFilterName(f))))
+            return FilterResult.SUCCESS;
+
         String buyItem1Name = trade.getCostA().getItemName().getString().toLowerCase();
-        if (filters.stream().anyMatch(f -> buyItem1Name.contains(formatFilterName(f)))) return FilterResult.SUCCESS;
+        if (filters.stream().anyMatch(f -> buyItem1Name.contains(formatFilterName(f))))
+            return FilterResult.SUCCESS;
 
         ItemStack costB = trade.getCostB();
         if (costB != ItemStack.EMPTY) {
             String buyItem2Name = costB.getItemName().getString().toLowerCase();
-            if (filters.stream().anyMatch(f -> buyItem2Name.contains(formatFilterName(f)))) return FilterResult.SUCCESS;
+            if (filters.stream().anyMatch(f -> buyItem2Name.contains(formatFilterName(f))))
+                return FilterResult.SUCCESS;
         }
         return null;
     }
@@ -258,38 +330,44 @@ public class RerollLogic {
     public static SignBlockEntity getAttachedSign(Level world, BlockPos pos) {
         for (Direction dir : Direction.Plane.HORIZONTAL) {
             BlockPos side = pos.relative(dir);
-            if (world.getBlockEntity(side) instanceof SignBlockEntity signEntity) return signEntity;
+            if (world.getBlockEntity(side) instanceof SignBlockEntity signEntity)
+                return signEntity;
         }
         return null;
     }
 
-    private static void spawnParticles(ServerLevel world, FilterResult filterResult, Villager villager, BlockPos clickedPos) {
+    private static void spawnParticles(ServerLevel world, FilterResult filterResult, Villager villager,
+            BlockPos clickedPos) {
         if (filterResult == FilterResult.SUCCESS) {
             world.playSound(null, villager, SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1f, 1f);
             for (int i = 0; i < durationTicks; i++) {
-                world.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX() + 0.5, villager.getY() + 1, villager.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.01);
-                world.sendParticles(ParticleTypes.HAPPY_VILLAGER, clickedPos.getX() + 0.5, clickedPos.getY() + 1, clickedPos.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.01);
+                world.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX() + 0.5, villager.getY() + 1,
+                        villager.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.01);
+                world.sendParticles(ParticleTypes.HAPPY_VILLAGER, clickedPos.getX() + 0.5, clickedPos.getY() + 1,
+                        clickedPos.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.01);
             }
         } else if (filterResult == FilterResult.FAILED) {
             world.playSound(null, villager, SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 1f, 1f);
             for (int i = 0; i < durationTicks; i++) {
-                world.sendParticles(ParticleTypes.ANGRY_VILLAGER, villager.getX() + 0.5, villager.getY() + 1, villager.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.01);
-                world.sendParticles(ParticleTypes.ANGRY_VILLAGER, clickedPos.getX() + 0.5, clickedPos.getY() + 1, clickedPos.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.01);
+                world.sendParticles(ParticleTypes.ANGRY_VILLAGER, villager.getX() + 0.5, villager.getY() + 1,
+                        villager.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.01);
+                world.sendParticles(ParticleTypes.ANGRY_VILLAGER, clickedPos.getX() + 0.5, clickedPos.getY() + 1,
+                        clickedPos.getZ() + 0.5, 8, 0.3, 0.3, 0.3, 0.01);
             }
         }
     }
 
-    public static int executeFind(CommandSourceStack source, String query) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    public static int executeFind(CommandSourceStack source, String query)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         net.minecraft.server.level.ServerPlayer player = source.getPlayerOrException();
         ServerLevel level = source.getLevel();
 
         double radius = 128.0;
         AABB box = player.getBoundingBox().inflate(radius);
         List<Villager> villagers = level.getEntitiesOfClass(
-            Villager.class,
-            box,
-            v -> v.isAlive()
-        );
+                Villager.class,
+                box,
+                v -> v.isAlive());
 
         // First, clear the GLOWING effect from all loaded villagers in range
         for (Villager villager : villagers) {
@@ -303,9 +381,8 @@ public class RerollLogic {
             for (MerchantOffer trade : offers) {
                 if (trade.getResult().getItem() == Items.ENCHANTED_BOOK) {
                     ItemEnchantments enchantments = trade.getResult().getOrDefault(
-                        DataComponents.STORED_ENCHANTMENTS,
-                        ItemEnchantments.EMPTY
-                    );
+                            DataComponents.STORED_ENCHANTMENTS,
+                            ItemEnchantments.EMPTY);
                     for (var entry : enchantments.entrySet()) {
                         Holder<Enchantment> enchHolder = entry.getKey();
                         String enchName = enchHolder.unwrapKey().map(k -> k.identifier().getPath()).orElse("unknown");
@@ -323,19 +400,20 @@ public class RerollLogic {
             if (matchFound) {
                 // Apply GLOWING effect for 30 seconds (600 ticks)
                 villager.addEffect(new MobEffectInstance(
-                    MobEffects.GLOWING,
-                    600, // 30 seconds
-                    0,
-                    false,
-                    false
-                ));
+                        MobEffects.GLOWING,
+                        600, // 30 seconds
+                        0,
+                        false,
+                        false));
                 matchCount++;
             }
         }
 
         final int count = matchCount;
         if (count > 0) {
-            source.sendSuccess(() -> Component.literal("§aFound " + count + " villager(s) offering '" + query + "'. They are now glowing for 30 seconds!"), true);
+            source.sendSuccess(() -> Component.literal(
+                    "§aFound " + count + " villager(s) offering '" + query + "'. They are now glowing for 30 seconds!"),
+                    true);
         } else {
             source.sendFailure(Component.literal("No loaded villagers found offering '" + query + "'."));
         }
@@ -378,16 +456,22 @@ public class RerollLogic {
 
         // Place Lectern inside the room, in front of the villager
         BlockPos lecternPos = center.relative(facing.getOpposite(), 1);
-        level.setBlock(lecternPos, Blocks.LECTERN.defaultBlockState().setValue(LecternBlock.FACING, facing), 3);
+        level.setBlock(lecternPos, Blocks.LECTERN.defaultBlockState().setValue(net.minecraft.world.level.block.LecternBlock.FACING, facing), 3);
 
         // Place Sign attached to the front of the Lectern
         BlockPos signPos = lecternPos.relative(facing.getOpposite());
-        level.setBlock(signPos, Blocks.OAK_WALL_SIGN.defaultBlockState().setValue(net.minecraft.world.level.block.WallSignBlock.FACING, facing.getOpposite()), 3);
+        level.setBlock(signPos, 
+Blocks.OAK_WALL_SIGN.defaultBlockState().setValue(net.minecraft.world.level.block.WallSignBlock.FACING, 
+facing.getOpposite()), 3);
 
         source.sendSuccess(() -> Component.literal("§aSetup complete! A small room with a villager and lectern has been generated."), true);
         return 1;
     }
 
-    public record TradeFilter(String filterName, int enchLevel, int price) {}
-    enum FilterResult { SUCCESS, FAILED }
+    public record TradeFilter(String filterName, int enchLevel, int price) {
+    }
+
+    enum FilterResult {
+        SUCCESS, FAILED
+    }
 }

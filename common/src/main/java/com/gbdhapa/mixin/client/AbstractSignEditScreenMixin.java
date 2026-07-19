@@ -37,47 +37,49 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
     @Unique
     private static final ItemStack ENCHANTED_BOOK_STACK = new ItemStack(Items.ENCHANTED_BOOK);
 
+
+
     @Unique
-    private static final List<com.gbdhapa.EnchantmentInfo> ALL_ENCHANTMENTS = List.of(
-        new com.gbdhapa.EnchantmentInfo("aqua_affinity", 1),
-        new com.gbdhapa.EnchantmentInfo("bane_of_arthropods", 5),
-        new com.gbdhapa.EnchantmentInfo("blast_protection", 4),
-        new com.gbdhapa.EnchantmentInfo("breach", 4),
-        new com.gbdhapa.EnchantmentInfo("channeling", 1),
-        new com.gbdhapa.EnchantmentInfo("curse_of_binding", 1),
-        new com.gbdhapa.EnchantmentInfo("curse_of_vanishing", 1),
-        new com.gbdhapa.EnchantmentInfo("depth_strider", 3),
-        new com.gbdhapa.EnchantmentInfo("density", 5),
-        new com.gbdhapa.EnchantmentInfo("efficiency", 5),
-        new com.gbdhapa.EnchantmentInfo("feather_falling", 4),
-        new com.gbdhapa.EnchantmentInfo("fire_aspect", 2),
-        new com.gbdhapa.EnchantmentInfo("fire_protection", 4),
-        new com.gbdhapa.EnchantmentInfo("flame", 1),
-        new com.gbdhapa.EnchantmentInfo("fortune", 3),
-        new com.gbdhapa.EnchantmentInfo("frost_walker", 2),
-        new com.gbdhapa.EnchantmentInfo("impaling", 5),
-        new com.gbdhapa.EnchantmentInfo("infinity", 1),
-        new com.gbdhapa.EnchantmentInfo("knockback", 2),
-        new com.gbdhapa.EnchantmentInfo("looting", 3),
-        new com.gbdhapa.EnchantmentInfo("loyalty", 3),
-        new com.gbdhapa.EnchantmentInfo("luck_of_the_sea", 3),
-        new com.gbdhapa.EnchantmentInfo("lure", 3),
-        new com.gbdhapa.EnchantmentInfo("mending", 1),
-        new com.gbdhapa.EnchantmentInfo("multishot", 1),
-        new com.gbdhapa.EnchantmentInfo("piercing", 4),
-        new com.gbdhapa.EnchantmentInfo("power", 5),
-        new com.gbdhapa.EnchantmentInfo("projectile_protection", 4),
-        new com.gbdhapa.EnchantmentInfo("protection", 4),
-        new com.gbdhapa.EnchantmentInfo("punch", 2),
-        new com.gbdhapa.EnchantmentInfo("quick_charge", 3),
-        new com.gbdhapa.EnchantmentInfo("respiration", 3),
-        new com.gbdhapa.EnchantmentInfo("riptide", 3),
-        new com.gbdhapa.EnchantmentInfo("sharpness", 5),
-        new com.gbdhapa.EnchantmentInfo("silk_touch", 1),
-        new com.gbdhapa.EnchantmentInfo("smite", 5),
-        new com.gbdhapa.EnchantmentInfo("sweeping_edge", 3),
-        new com.gbdhapa.EnchantmentInfo("thorns", 3),
-        new com.gbdhapa.EnchantmentInfo("unbreaking", 3)
+    private static final List<EnchantmentInfo> ALL_ENCHANTMENTS = List.of(
+        new EnchantmentInfo("aqua_affinity", 1),
+        new EnchantmentInfo("bane_of_arthropods", 5),
+        new EnchantmentInfo("blast_protection", 4),
+        new EnchantmentInfo("breach", 4),
+        new EnchantmentInfo("channeling", 1),
+        new EnchantmentInfo("curse_of_binding", 1),
+        new EnchantmentInfo("curse_of_vanishing", 1),
+        new EnchantmentInfo("depth_strider", 3),
+        new EnchantmentInfo("density", 5),
+        new EnchantmentInfo("efficiency", 5),
+        new EnchantmentInfo("feather_falling", 4),
+        new EnchantmentInfo("fire_aspect", 2),
+        new EnchantmentInfo("fire_protection", 4),
+        new EnchantmentInfo("flame", 1),
+        new EnchantmentInfo("fortune", 3),
+        new EnchantmentInfo("frost_walker", 2),
+        new EnchantmentInfo("impaling", 5),
+        new EnchantmentInfo("infinity", 1),
+        new EnchantmentInfo("knockback", 2),
+        new EnchantmentInfo("looting", 3),
+        new EnchantmentInfo("loyalty", 3),
+        new EnchantmentInfo("luck_of_the_sea", 3),
+        new EnchantmentInfo("lure", 3),
+        new EnchantmentInfo("mending", 1),
+        new EnchantmentInfo("multishot", 1),
+        new EnchantmentInfo("piercing", 4),
+        new EnchantmentInfo("power", 5),
+        new EnchantmentInfo("projectile_protection", 4),
+        new EnchantmentInfo("protection", 4),
+        new EnchantmentInfo("punch", 2),
+        new EnchantmentInfo("quick_charge", 3),
+        new EnchantmentInfo("respiration", 3),
+        new EnchantmentInfo("riptide", 3),
+        new EnchantmentInfo("sharpness", 5),
+        new EnchantmentInfo("silk_touch", 1),
+        new EnchantmentInfo("smite", 5),
+        new EnchantmentInfo("sweeping_edge", 3),
+        new EnchantmentInfo("thorns", 3),
+        new EnchantmentInfo("unbreaking", 3)
     );
 
     protected AbstractSignEditScreenMixin(Component title) {
@@ -110,8 +112,10 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                 var registry = client.level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                 for (var key : registry.listElementIds().toList()) {
                     String path = key.identifier().getPath();
-                    if (path.equals("soul_speed") || path.equals("swift_sneak") || path.equals("wind_burst")) {
-                        continue;
+                    if (!com.gbdhapa.config.TradeConfig.INSTANCE.allowTreasureEnchantments) {
+                        if (path.equals("soul_speed") || path.equals("swift_sneak") || path.equals("wind_burst")) {
+                            continue;
+                        }
                     }
                     int maxLevel = 1;
                     var holderOpt = registry.get(key);
@@ -125,6 +129,13 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
             // fallback
         }
         if (list.isEmpty()) {
+            if (com.gbdhapa.config.TradeConfig.INSTANCE.allowTreasureEnchantments) {
+                List<EnchantmentInfo> fallback = new ArrayList<>(ALL_ENCHANTMENTS);
+                fallback.add(new EnchantmentInfo("soul_speed", 3));
+                fallback.add(new EnchantmentInfo("swift_sneak", 3));
+                fallback.add(new EnchantmentInfo("wind_burst", 3));
+                return fallback;
+            }
             return ALL_ENCHANTMENTS;
         }
         return list;

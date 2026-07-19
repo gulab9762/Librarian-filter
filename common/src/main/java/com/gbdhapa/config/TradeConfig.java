@@ -18,6 +18,7 @@ public class TradeConfig {
     public boolean enableEachLevelReroll = false;
     public boolean disableTradeRebalance = false;
     public boolean enableSignSuggestions = true;
+    public boolean allowTreasureEnchantments = false;
 
     public static void load() {
         if (CONFIG_FILE.exists()) {
