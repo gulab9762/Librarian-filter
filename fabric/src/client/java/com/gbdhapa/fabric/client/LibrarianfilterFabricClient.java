@@ -17,11 +17,12 @@ public class LibrarianfilterFabricClient implements ClientModInitializer {
             TradeConfig.INSTANCE.enableEachLevelReroll = payload.enableEachLevelReroll();
             TradeConfig.INSTANCE.disableTradeRebalance = payload.disableTradeRebalance();
             TradeConfig.INSTANCE.enableSignSuggestions = payload.enableSignSuggestions();
+            TradeConfig.INSTANCE.allowTreasureEnchantments = payload.allowTreasureEnchantments();
         });
 
         ClientPlayNetworking.registerGlobalReceiver(OpenConfigScreenPayload.ID, (payload, context) -> {
             context.client().execute(() -> {
-                context.client().setScreenAndShow(new FabricTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions()));
+                context.client().setScreenAndShow(new FabricTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
             });
         });
 

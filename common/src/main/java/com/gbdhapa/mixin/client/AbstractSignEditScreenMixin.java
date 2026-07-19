@@ -120,8 +120,10 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                 var registry = client.level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                 for (var key : registry.listElementIds().toList()) {
                     String path = key.identifier().getPath();
-                    if (path.equals("soul_speed") || path.equals("swift_sneak") || path.equals("wind_burst")) {
-                        continue;
+                    if (!com.gbdhapa.config.TradeConfig.INSTANCE.allowTreasureEnchantments) {
+                        if (path.equals("soul_speed") || path.equals("swift_sneak") || path.equals("wind_burst")) {
+                            continue;
+                        }
                     }
                     int maxLevel = 1;
                     var holderOpt = registry.get(key);
@@ -135,6 +137,13 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
             // fallback
         }
         if (list.isEmpty()) {
+            if (com.gbdhapa.config.TradeConfig.INSTANCE.allowTreasureEnchantments) {
+                List<EnchantmentInfo> fallback = new ArrayList<>(ALL_ENCHANTMENTS);
+                fallback.add(new EnchantmentInfo("soul_speed", 3));
+                fallback.add(new EnchantmentInfo("swift_sneak", 3));
+                fallback.add(new EnchantmentInfo("wind_burst", 3));
+                return fallback;
+            }
             return ALL_ENCHANTMENTS;
         }
         return list;

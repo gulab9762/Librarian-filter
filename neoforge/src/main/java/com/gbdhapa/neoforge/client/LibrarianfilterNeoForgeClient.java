@@ -58,7 +58,7 @@ public class LibrarianfilterNeoForgeClient {
     public static void registerClientPayloads(RegisterPayloadHandlersEvent event) {
         event.registrar("1.0.1").playToClient(OpenConfigScreenPayload.ID, OpenConfigScreenPayload.CODEC, (payload, context) -> {
             context.enqueueWork(() -> {
-                Minecraft.getInstance().setScreenAndShow(new NeoForgeTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions()));
+                Minecraft.getInstance().setScreenAndShow(new NeoForgeTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
             });
         });
     }
