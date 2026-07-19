@@ -9,3 +9,51 @@ allprojects {
 	version = project.mod_version
 	group = project.maven_group
 }
+
+// Isolated Gradle user home so run tasks never share the Loom cache lock
+// with the IDE's Java Language Server background sync.
+def isolatedGradleHome = "${rootDir}/.gradle-run"
+
+// ── Fabric shortcuts ──────────────────────────────────────────────────────────
+
+// Launches the Fabric client in a child Gradle process with its own cache dir.
+tasks.register('runFabricClient', Exec) {
+	group = 'librarian-filter'
+	description = 'Start the Fabric development client (isolated cache)'
+	def gradleCmd = System.getProperty('os.name').toLowerCase().contains('windows')
+		? ["${rootDir}\\gradlew.bat"] : ['./gradlew']
+	commandLine gradleCmd + [':fabric:runClient', '-g', isolatedGradleHome]
+	workingDir rootDir
+}
+
+tasks.register('buildFabric') {
+	group = 'librarian-filter'
+	description = 'Build the Fabric mod jar'
+	dependsOn ':fabric:build'
+}
+
+// ── NeoForge shortcuts ────────────────────────────────────────────────────────
+
+// Launches the NeoForge client in a child Gradle process with its own cache dir.
+tasks.register('runNeoForgeClient', Exec) {
+	group = 'librarian-filter'
+	description = 'Start the NeoForge development client (isolated cache)'
+	def gradleCmd = System.getProperty('os.name').toLowerCase().contains('windows')
+		? ["${rootDir}\\gradlew.bat"] : ['./gradlew']
+	commandLine gradleCmd + [':neoforge:runClient', '-g', isolatedGradleHome]
+	workingDir rootDir
+}
+
+tasks.register('buildNeoForge') {
+	group = 'librarian-filter'
+	description = 'Build the NeoForge mod jar'
+	dependsOn ':neoforge:build'
+}
+
+// ── Combined shortcuts ────────────────────────────────────────────────────────
+tasks.register('buildAll') {
+	group = 'librarian-filter'
+	description = 'Build mod jars for all platforms (Fabric + NeoForge)'
+	dependsOn ':fabric:build', ':neoforge:build'
+}
+
