@@ -14,7 +14,7 @@ public class ClientInit {
         OPEN_CONFIG_KEY = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.librarian-filter.open_trade_config",
                 InputConstants.KEY_O,
-                KeyMapping.Category.GAMEPLAY
+                KeyMapping.CATEGORY_GAMEPLAY
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

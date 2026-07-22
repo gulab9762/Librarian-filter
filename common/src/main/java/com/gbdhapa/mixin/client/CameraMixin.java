@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class CameraMixin {
 
     @Inject(method = "setup", at = @At("HEAD"), cancellable = true)
-    private void onSetup(net.minecraft.world.level.Level level, net.minecraft.world.entity.Entity entity,
+    private void onSetup(net.minecraft.world.level.BlockGetter level, net.minecraft.world.entity.Entity entity,
                          boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
         if (net.minecraft.client.Minecraft.getInstance().player == null) {
             ci.cancel();

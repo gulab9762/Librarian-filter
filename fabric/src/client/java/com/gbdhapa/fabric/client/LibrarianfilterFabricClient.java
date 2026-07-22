@@ -39,8 +39,8 @@ public class LibrarianfilterFabricClient implements ClientModInitializer {
                                                 .withStyle(style -> style
                                                         .withColor(net.minecraft.ChatFormatting.RED)
                                                         .withUnderlined(true)
-                                                        .withClickEvent(new ClickEvent.RunCommand("/reroll config toggle disableTradeRebalance"))
-                                                        .withHoverEvent(new HoverEvent.ShowText(net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
+                                                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll config toggle disableTradeRebalance"))
+                                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
                                                 )
                                 );
                         client.player.displayClientMessage(warning, false);

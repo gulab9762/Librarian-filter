@@ -17,14 +17,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import com.gbdhapa.EnchantmentDescriptions;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.CharacterEvent;
-
 import java.util.ArrayList;
 import java.util.List;
 import com.gbdhapa.EnchantmentInfo;
+import com.gbdhapa.EnchantmentDescriptions;
 
 @Mixin(AbstractSignEditScreen.class)
 public abstract class AbstractSignEditScreenMixin extends Screen {
@@ -115,7 +111,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
             if (client.level != null) {
                 var registry = client.level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                 for (var key : registry.listElementIds().toList()) {
-                    String path = key.identifier().getPath();
+                    String path = key.location().getPath();
                     if (!com.gbdhapa.config.TradeConfig.INSTANCE.allowTreasureEnchantments) {
                         if (path.equals("soul_speed") || path.equals("swift_sneak") || path.equals("wind_burst")) {
                             continue;
@@ -220,8 +216,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        int keyCode = event.key();
+    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         if (suggestionsVisible && !suggestions.isEmpty()) {
             if (keyCode == 264) { // GLFW_KEY_DOWN
                 selectedSuggestionIndex = (selectedSuggestionIndex + 1) % suggestions.size();
@@ -246,19 +241,17 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
     }
 
     @Inject(method = "keyPressed", at = @At("TAIL"))
-    private void postKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void postKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         updateSuggestions();
     }
 
     @Inject(method = "charTyped", at = @At("TAIL"))
-    private void postCharTyped(CharacterEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void postCharTyped(char codePoint, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         updateSuggestions();
     }
 
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        double mouseX = event.x();
-        double mouseY = event.y();
-        int button = event.button();
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (suggestionsVisible && !suggestions.isEmpty() && button == 0) {
             int boxX = 15;
             int boxY = 30;
@@ -283,7 +276,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                 currentY += 18;
             }
         }
-        return super.mouseClicked(event, doubleClick);
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Inject(method = "render", at = @At("TAIL"))
@@ -333,7 +326,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                         String formattedName = s.path().substring(0, 1).toUpperCase() + s.path().substring(1).replace('_', ' ');
                         tooltipText.add(Component.literal("§e" + formattedName));
                         tooltipText.add(Component.literal("§7" + desc));
-                        guiGraphics.setComponentTooltipForNextFrame(this.font, tooltipText, mouseX, mouseY);
+                        guiGraphics.renderComponentTooltip(this.font, tooltipText, mouseX, mouseY);
                     }
                 }
 

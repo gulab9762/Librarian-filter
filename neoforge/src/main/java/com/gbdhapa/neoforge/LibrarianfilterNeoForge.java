@@ -6,7 +6,6 @@ import com.gbdhapa.network.*;
 import com.gbdhapa.neoforge.client.LibrarianfilterNeoForgeClient;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.players.NameAndId;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -53,8 +52,8 @@ public class LibrarianfilterNeoForge {
             context.enqueueWork(() -> {
                 ServerPlayer player = (ServerPlayer) context.player();
                 var server = player.level().getServer();
-                net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(player.getGameProfile());
-                if (server.getPlayerList().isOp(nameAndId) || server.isSingleplayerOwner(nameAndId)) {
+                com.mojang.authlib.GameProfile profile = player.getGameProfile();
+                if (server.getPlayerList().isOp(profile) || server.isSingleplayerOwner(profile)) {
                     TradeConfig.INSTANCE.enableReroll = payload.enableReroll();
                     TradeConfig.INSTANCE.enableEachLevelReroll = payload.enableEachLevelReroll();
                     TradeConfig.INSTANCE.disableTradeRebalance = payload.disableTradeRebalance();
@@ -72,8 +71,8 @@ public class LibrarianfilterNeoForge {
         registrar.playToServer(ConfigRequestPayload.ID, ConfigRequestPayload.CODEC, (payload, context) -> {
             context.enqueueWork(() -> {
                 ServerPlayer player = (ServerPlayer) context.player();
-                net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(player.getGameProfile());
-                if (player.level().getServer().getPlayerList().isOp(nameAndId) || player.level().getServer().isSingleplayerOwner(nameAndId)) {
+                com.mojang.authlib.GameProfile profile = player.getGameProfile();
+                if (player.level().getServer().getPlayerList().isOp(profile) || player.level().getServer().isSingleplayerOwner(profile)) {
                     PacketDistributor.sendToPlayer(player, new OpenConfigScreenPayload(
                             TradeConfig.INSTANCE.enableReroll,
                             TradeConfig.INSTANCE.enableEachLevelReroll,
@@ -100,8 +99,8 @@ public class LibrarianfilterNeoForge {
                 .then(Commands.literal("config")
                         .requires(source -> {
                             try {
-                                net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(source.getPlayerOrException().getGameProfile());
-                                return source.getServer().getPlayerList().isOp(nameAndId) || source.getServer().isSingleplayerOwner(nameAndId);
+                                com.mojang.authlib.GameProfile profile = source.getPlayerOrException().getGameProfile();
+                                return source.getServer().getPlayerList().isOp(profile) || source.getServer().isSingleplayerOwner(profile);
                             } catch (Exception e) {
                                 return false;
                             }
@@ -173,7 +172,7 @@ public class LibrarianfilterNeoForge {
                                     try {
                                         var registry = source.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
                                         java.util.List<String> paths = registry.listElementIds().toList().stream()
-                                                .map(key -> key.identifier().getPath())
+                                                .map(key -> key.location().getPath())
                                                 .filter(path -> TradeConfig.INSTANCE.allowTreasureEnchantments || (!path.equals("soul_speed") && !path.equals("swift_sneak") && !path.equals("wind_burst")))
                                                 .toList();
                                         return net.minecraft.commands.SharedSuggestionProvider.suggest(paths, builder);

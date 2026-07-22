@@ -28,8 +28,8 @@ public class LibrarianfilterFabric implements ModInitializer {
         // Register Receivers
         ServerPlayNetworking.registerGlobalReceiver(TradeConfigUpdatePayload.ID, (payload, context) -> {
             var server = context.player().level().getServer();
-            net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(context.player().getGameProfile());
-            if (server.getPlayerList().isOp(nameAndId) || server.isSingleplayerOwner(nameAndId)) {
+            com.mojang.authlib.GameProfile profile = context.player().getGameProfile();
+            if (server.getPlayerList().isOp(profile) || server.isSingleplayerOwner(profile)) {
                 TradeConfig.INSTANCE.enableReroll = payload.enableReroll();
                 TradeConfig.INSTANCE.enableEachLevelReroll = payload.enableEachLevelReroll();
                 TradeConfig.INSTANCE.disableTradeRebalance = payload.disableTradeRebalance();
@@ -48,8 +48,8 @@ public class LibrarianfilterFabric implements ModInitializer {
 
         ServerPlayNetworking.registerGlobalReceiver(ConfigRequestPayload.ID, (payload, context) -> {
             var server = context.player().level().getServer();
-            net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(context.player().getGameProfile());
-            if (server.getPlayerList().isOp(nameAndId) || server.isSingleplayerOwner(nameAndId)) {
+            com.mojang.authlib.GameProfile profile = context.player().getGameProfile();
+            if (server.getPlayerList().isOp(profile) || server.isSingleplayerOwner(profile)) {
                 ServerPlayNetworking.send(context.player(), new OpenConfigScreenPayload(
                         TradeConfig.INSTANCE.enableReroll,
                         TradeConfig.INSTANCE.enableEachLevelReroll,
@@ -75,8 +75,8 @@ public class LibrarianfilterFabric implements ModInitializer {
                     .then(Commands.literal("config")
                             .requires(source -> {
                                     try {
-                                        net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(source.getPlayerOrException().getGameProfile());
-                                        return source.getServer().getPlayerList().isOp(nameAndId) || source.getServer().isSingleplayerOwner(nameAndId);
+                                        com.mojang.authlib.GameProfile profile = source.getPlayerOrException().getGameProfile();
+                                        return source.getServer().getPlayerList().isOp(profile) || source.getServer().isSingleplayerOwner(profile);
                                     } catch (Exception e) {
                                         return false;
                                     }
@@ -149,8 +149,9 @@ public class LibrarianfilterFabric implements ModInitializer {
                                         net.minecraft.commands.CommandSourceStack source = context.getSource();
                                         try {
                                             var registry = source.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
-                                            java.util.List<String> paths = registry.listElementIds().map(key -> key.identifier().getPath())
+                                            java.util.List<String> paths = registry.listElementIds().map(key -> key.location().getPath())
                                                     .filter(path -> TradeConfig.INSTANCE.allowTreasureEnchantments || (!path.equals("soul_speed") && !path.equals("swift_sneak") && !path.equals("wind_burst")))
+                                                    .map(Object::toString)
                                                     .toList();
                                             return net.minecraft.commands.SharedSuggestionProvider.suggest(paths, builder);
                                         } catch (Exception e) {

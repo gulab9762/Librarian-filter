@@ -3,13 +3,12 @@ package com.gbdhapa.neoforge.client;
 import com.gbdhapa.network.ConfigRequestPayload;
 import com.gbdhapa.network.OpenConfigScreenPayload;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.KeyMapping.Category;
 import net.minecraft.client.Minecraft;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -35,8 +34,8 @@ public class LibrarianfilterNeoForgeClient {
                                             .withStyle(style -> style
                                                     .withColor(net.minecraft.ChatFormatting.RED)
                                                     .withUnderlined(true)
-                                                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/reroll config toggle disableTradeRebalance"))
-                                                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
+                                                    .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/reroll config toggle disableTradeRebalance"))
+                                                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
                                             )
                             );
                     Minecraft.getInstance().player.displayClientMessage(warning, false);
@@ -48,9 +47,8 @@ public class LibrarianfilterNeoForgeClient {
     public static void registerKeyMappings(RegisterKeyMappingsEvent event) {
         OPEN_CONFIG_KEY = new KeyMapping(
                 "key.librarian-filter.open_trade_config",
-                InputConstants.Type.KEYSYM,
                 InputConstants.KEY_O,
-                new Category(Identifier.fromNamespaceAndPath("minecraft", "gameplay"))
+                KeyMapping.CATEGORY_GAMEPLAY
         );
         event.register(OPEN_CONFIG_KEY);
     }
@@ -58,7 +56,7 @@ public class LibrarianfilterNeoForgeClient {
     public static void registerClientPayloads(RegisterPayloadHandlersEvent event) {
         event.registrar("1.0.1").playToClient(OpenConfigScreenPayload.ID, OpenConfigScreenPayload.CODEC, (payload, context) -> {
             context.enqueueWork(() -> {
-                Minecraft.getInstance().setScreenAndShow(new NeoForgeTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
+                Minecraft.getInstance().setScreen(new NeoForgeTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
             });
         });
     }
@@ -67,7 +65,7 @@ public class LibrarianfilterNeoForgeClient {
         if (event.getEntity().level().isClientSide()) {
             if (OPEN_CONFIG_KEY != null) {
                 while (OPEN_CONFIG_KEY.consumeClick()) {
-                    ClientPacketDistributor.sendToServer(new ConfigRequestPayload());
+                    PacketDistributor.sendToServer(new ConfigRequestPayload());
                 }
             }
         }

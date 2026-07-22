@@ -18,9 +18,9 @@ import org.slf4j.LoggerFactory;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
-import net.minecraft.world.entity.npc.villager.Villager;
-import net.minecraft.world.entity.npc.villager.VillagerData;
-import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerData;
+import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -143,11 +143,11 @@ public class RerollLogic {
         return new ArrayList<>();
     }
 
-    private static Villager getVillagerForWorkstation(Player player, ServerLevel world, BlockPos clickedPos) {
+    private static Villager getVillagerForWorkstation(Player player, Level world, BlockPos clickedPos) {
         AABB box = player.getBoundingBox().inflate(VILLAGER_SEARCH_RADIUS);
         List<Villager> nearbyVillagers = world.getEntitiesOfClass(Villager.class, box, v -> true);
         for (Villager villager : nearbyVillagers) {
-            if (villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)) {
+            if (villager.getVillagerData().getProfession() == VillagerProfession.LIBRARIAN) {
                 Optional<GlobalPos> jobSitePosOptional = villager.getBrain().getMemory(MemoryModuleType.JOB_SITE);
                 if (jobSitePosOptional.isPresent()) {
                     BlockPos jobSitePos = jobSitePosOptional.get().pos();
@@ -180,20 +180,20 @@ public class RerollLogic {
         }
         while (recycleCount <= MAX_REROLL_COUNT) {
             VillagerData data = villager.getVillagerData();
-            Holder<VillagerProfession> profession = data.profession();
-            Holder<VillagerProfession> noneProfession = BuiltInRegistries.VILLAGER_PROFESSION.get(VillagerProfession.NONE).orElseThrow();
-            villager.setVillagerData(data.withProfession(noneProfession));
-            villager.setVillagerData(villager.getVillagerData().withProfession(profession));
+            VillagerProfession profession = data.getProfession();
+            VillagerProfession noneProfession = VillagerProfession.NONE;
+            villager.setVillagerData(data.setProfession(noneProfession));
+            villager.setVillagerData(villager.getVillagerData().setProfession(profession));
 
             recycleCount++;
             MerchantOffers offers = villager.getOffers();
 
-            if (TradeConfig.INSTANCE.allowTreasureEnchantments && profession.is(VillagerProfession.LIBRARIAN)) {
+            if (TradeConfig.INSTANCE.allowTreasureEnchantments && profession == VillagerProfession.LIBRARIAN) {
                 injectTreasureEnchantments(villager, offers);
             }
 
             for (MerchantOffer trade : offers) {
-                if (profession.is(VillagerProfession.LIBRARIAN)) {
+                if (profession == VillagerProfession.LIBRARIAN) {
                     if (trade.getResult().getItem() == Items.ENCHANTED_BOOK) {
                         if (filterEnchantmentBook(filters, trade) == FilterResult.SUCCESS) {
                             applyNewOffers(villager, originalOffers, offers);
@@ -246,7 +246,10 @@ public class RerollLogic {
                 int minLvl = enchantment.getMinLevel();
                 int maxLvl = enchantment.getMaxLevel();
                 int l = net.minecraft.util.Mth.nextInt(random, Math.max(minLvl, 1), Math.max(maxLvl, 1));
-                ItemStack itemstack = EnchantmentHelper.createBook(new EnchantmentInstance(holder, l));
+                ItemStack itemstack = new ItemStack(Items.ENCHANTED_BOOK);
+                net.minecraft.world.item.enchantment.ItemEnchantments.Mutable mutable = new net.minecraft.world.item.enchantment.ItemEnchantments.Mutable(net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
+                mutable.set(holder, l);
+                itemstack.set(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS, mutable.toImmutable());
 
                 int cost = 2 + random.nextInt(5 + l * 10) + 3 * l;
                 if (holder.is(net.minecraft.tags.EnchantmentTags.DOUBLE_TRADE_PRICE)) {
@@ -279,7 +282,7 @@ public class RerollLogic {
         for (var entry : enchantments.entrySet()) {
             Holder<Enchantment> enchHolder = entry.getKey();
             int enchBookLevel = entry.getIntValue();
-            String enchName = enchHolder.unwrapKey().map(k -> k.identifier().getPath()).orElse("unknown");
+            String enchName = enchHolder.unwrapKey().map(k -> k.location().getPath()).orElse("unknown");
 
             for (TradeFilter filter : filters) {
                 int expectedLevel = filter.enchLevel == 0 ? enchHolder.value().getMaxLevel() : filter.enchLevel;
@@ -300,17 +303,17 @@ public class RerollLogic {
     }
 
     private static FilterResult filterTrades(List<TradeFilter> filters, MerchantOffer trade) {
-        String sellItemName = trade.getResult().getItemName().getString().toLowerCase();
+        String sellItemName = trade.getResult().getHoverName().getString().toLowerCase();
         if (filters.stream().anyMatch(f -> sellItemName.contains(formatFilterName(f))))
             return FilterResult.SUCCESS;
 
-        String buyItem1Name = trade.getCostA().getItemName().getString().toLowerCase();
+        String buyItem1Name = trade.getCostA().getHoverName().getString().toLowerCase();
         if (filters.stream().anyMatch(f -> buyItem1Name.contains(formatFilterName(f))))
             return FilterResult.SUCCESS;
 
         ItemStack costB = trade.getCostB();
         if (costB != ItemStack.EMPTY) {
-            String buyItem2Name = costB.getItemName().getString().toLowerCase();
+            String buyItem2Name = costB.getHoverName().getString().toLowerCase();
             if (filters.stream().anyMatch(f -> buyItem2Name.contains(formatFilterName(f))))
                 return FilterResult.SUCCESS;
         }
@@ -379,7 +382,7 @@ public class RerollLogic {
                             ItemEnchantments.EMPTY);
                     for (var entry : enchantments.entrySet()) {
                         Holder<Enchantment> enchHolder = entry.getKey();
-                        String enchName = enchHolder.unwrapKey().map(k -> k.identifier().getPath()).orElse("unknown");
+                        String enchName = enchHolder.unwrapKey().map(k -> k.location().getPath()).orElse("unknown");
                         if (enchName.toLowerCase().contains(query.toLowerCase())) {
                             matchFound = true;
                             break;

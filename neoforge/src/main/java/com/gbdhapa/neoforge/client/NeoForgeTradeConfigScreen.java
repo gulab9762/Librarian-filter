@@ -5,7 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public class NeoForgeTradeConfigScreen extends Screen {
     private boolean enableReroll;
@@ -58,7 +58,7 @@ public class NeoForgeTradeConfigScreen extends Screen {
         }).bounds(startX, startY + 120, buttonWidth, buttonHeight).build());
 
         this.addRenderableWidget(Button.builder(Component.literal("Save"), button -> {
-            ClientPacketDistributor.sendToServer(new TradeConfigUpdatePayload(this.enableReroll, this.enableEachLevelReroll, this.disableTradeRebalance, this.enableSignSuggestions, this.allowTreasureEnchantments));
+            PacketDistributor.sendToServer(new TradeConfigUpdatePayload(this.enableReroll, this.enableEachLevelReroll, this.disableTradeRebalance, this.enableSignSuggestions, this.allowTreasureEnchantments));
             this.onClose();
         }).bounds(startX, startY + 160, buttonWidth, buttonHeight).build());
     }
