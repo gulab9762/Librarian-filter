@@ -1,11 +1,64 @@
 plugins {
-	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}" apply false
-	id 'net.neoforged.moddev' version '2.0.141' apply false
+    id 'java'
+    id 'java-library'
+    id 'maven-publish'
+    id 'xyz.wagyourtail.unimined' version '1.4.1'
 }
 
-allprojects {
-	apply plugin: 'maven-publish'
-	
-	version = project.mod_version
-	group = project.maven_group
+version = mod_version
+group = root_package
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+unimined.minecraft {
+    version "1.12.2"
+
+    mappings {
+        mcp("stable", "39-1.12")
+    }
+
+    minecraftForge {
+        loader "14.23.5.2860"
+        mixinConfig "librarian-filter.mixins.json"
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.cleanroommc.com' }
+    maven { url 'https://repo.spongepowered.org/maven' }
+}
+
+dependencies {
+    implementation 'org.spongepowered:mixin:0.8.5'
+}
+
+jar {
+    manifest {
+        attributes([
+            "Specification-Title": "librarian-filter",
+            "Specification-Vendor": "gbdhapa",
+            "Specification-Version": "1",
+            "Implementation-Title": project.name,
+            "Implementation-Version": project.mod_version,
+            "Implementation-Vendor" :"gbdhapa",
+            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+            "FMLCorePluginContainsFMLMod": "true"
+        ])
+    }
+}
+
+afterEvaluate {
+    tasks.runClient {
+        javaLauncher.set((JavaLauncher) null)
+        executable = "C:\\Program Files\\Java\\jre-1.8\\bin\\java.exe"
+        jvmArgs += ["-Xmx2G"]
+    }
 }
