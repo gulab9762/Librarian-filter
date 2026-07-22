@@ -19,16 +19,21 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Mod("librarian_filter")
+@EventBusSubscriber(modid = "librarian_filter")
 public class LibrarianfilterNeoForge {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LibrarianfilterNeoForge.class);
+
     public LibrarianfilterNeoForge(IEventBus modEventBus) {
         TradeConfig.load();
 
         modEventBus.addListener(this::registerPayloads);
-        
-        NeoForge.EVENT_BUS.addListener(this::onRightClickBlock);
-        NeoForge.EVENT_BUS.addListener(this::registerCommands);
-        NeoForge.EVENT_BUS.addListener(this::onServerStarted);
 
         LibrarianfilterNeoForgeClient.init(modEventBus);
     }
@@ -81,14 +86,16 @@ public class LibrarianfilterNeoForge {
         });
     }
 
-    private void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         event.setCancellationResult(RerollLogic.handleBlockUse(event.getEntity(), event.getLevel(), event.getPos()));
         if (event.getCancellationResult().consumesAction()) {
             event.setCanceled(true);
         }
     }
 
-    private void registerCommands(RegisterCommandsEvent event) {
+    @SubscribeEvent
+    public static void registerCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("reroll")
                 .then(Commands.literal("config")
                         .requires(source -> {
@@ -199,7 +206,8 @@ public class LibrarianfilterNeoForge {
         );
     }
 
-    private void onServerStarted(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
+    @SubscribeEvent
+    public static void onServerStarted(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
         TradeConfig.applyTradeRebalanceOverride(event.getServer());
     }
 }

@@ -39,7 +39,7 @@ public class LibrarianfilterNeoForgeClient {
                                                     .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
                                             )
                             );
-                    Minecraft.getInstance().player.sendSystemMessage(warning);
+                    Minecraft.getInstance().player.displayClientMessage(warning, false);
                 }
             });
         }

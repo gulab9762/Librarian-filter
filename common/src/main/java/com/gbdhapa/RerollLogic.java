@@ -6,6 +6,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -68,19 +69,13 @@ public class RerollLogic {
             return InteractionResult.PASS;
         }
         List<TradeFilter> filters = getEnchFilters(signTexts);
-        LOGGER.info("Reroll requested by player {}. Found filters: {}. allowTreasureEnchantments: {}",
-                player.getName().getString(), filters, TradeConfig.INSTANCE.allowTreasureEnchantments);
         if (!filters.isEmpty() && world instanceof ServerLevel) {
             Villager villager = getVillagerForWorkstation(player, (ServerLevel) world, clickedPos);
             if (villager != null) {
-                LOGGER.info("Found villager for workstation. Starting reroll process...");
                 FilterResult filterResult = filterTrade(villager, filters);
-                LOGGER.info("Reroll process finished with result: {}", filterResult);
                 villager.refreshBrain((ServerLevel) world);
                 spawnParticles((ServerLevel) world, filterResult, villager, clickedPos);
                 cooldownMap.put(playerUUID, Map.of(clickedPos, currentTime));
-            } else {
-                LOGGER.info("No villager found for the given workstation.");
             }
         }
         return InteractionResult.PASS;
@@ -178,7 +173,6 @@ public class RerollLogic {
     }
 
     private static FilterResult filterTrade(Villager villager, List<TradeFilter> filters) {
-        RegistryAccess access = villager.level().registryAccess();
         int recycleCount = 0;
         MerchantOffers originalOffers = villager.getOffers();
         if (checkIfPlayerHasTradedLastOffers(originalOffers)) {
@@ -187,7 +181,7 @@ public class RerollLogic {
         while (recycleCount <= MAX_REROLL_COUNT) {
             VillagerData data = villager.getVillagerData();
             Holder<VillagerProfession> profession = data.profession();
-            Holder<VillagerProfession> noneProfession = access.getOrThrow(VillagerProfession.NONE);
+            Holder<VillagerProfession> noneProfession = BuiltInRegistries.VILLAGER_PROFESSION.get(VillagerProfession.NONE).orElseThrow();
             villager.setVillagerData(data.withProfession(noneProfession));
             villager.setVillagerData(villager.getVillagerData().withProfession(profession));
 
@@ -450,7 +444,7 @@ public class RerollLogic {
         }
         
         // Spawn villager
-        Villager villager = new Villager(net.minecraft.world.entity.EntityTypes.VILLAGER, level);
+        Villager villager = new Villager(net.minecraft.world.entity.EntityType.VILLAGER, level);
         villager.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
         level.addFreshEntity(villager);
 

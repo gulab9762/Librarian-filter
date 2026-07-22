@@ -10,7 +10,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.players.NameAndId;
+import com.mojang.authlib.GameProfile;
 
 public class LibrarianfilterFabric implements ModInitializer {
     public static final String MOD_ID = "librarian-filter";
@@ -20,10 +20,10 @@ public class LibrarianfilterFabric implements ModInitializer {
         TradeConfig.load();
 
         // Register Payloads
-        PayloadTypeRegistry.clientboundPlay().register(TradeConfigSyncPayload.ID, TradeConfigSyncPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(OpenConfigScreenPayload.ID, OpenConfigScreenPayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(TradeConfigUpdatePayload.ID, TradeConfigUpdatePayload.CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(ConfigRequestPayload.ID, ConfigRequestPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(TradeConfigSyncPayload.ID, TradeConfigSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(OpenConfigScreenPayload.ID, OpenConfigScreenPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(TradeConfigUpdatePayload.ID, TradeConfigUpdatePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ConfigRequestPayload.ID, ConfigRequestPayload.CODEC);
 
         // Register Receivers
         ServerPlayNetworking.registerGlobalReceiver(TradeConfigUpdatePayload.ID, (payload, context) -> {
@@ -74,12 +74,12 @@ public class LibrarianfilterFabric implements ModInitializer {
             dispatcher.register(Commands.literal("reroll")
                     .then(Commands.literal("config")
                             .requires(source -> {
-                                try {
-                                    net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(source.getPlayerOrException().getGameProfile());
-                                    return source.getServer().getPlayerList().isOp(nameAndId) || source.getServer().isSingleplayerOwner(nameAndId);
-                                } catch (Exception e) {
-                                    return false;
-                                }
+                                    try {
+                                        net.minecraft.server.players.NameAndId nameAndId = new net.minecraft.server.players.NameAndId(source.getPlayerOrException().getGameProfile());
+                                        return source.getServer().getPlayerList().isOp(nameAndId) || source.getServer().isSingleplayerOwner(nameAndId);
+                                    } catch (Exception e) {
+                                        return false;
+                                    }
                             })
                             .executes(context -> {
                                 ServerPlayer player = context.getSource().getPlayerOrException();
@@ -149,8 +149,7 @@ public class LibrarianfilterFabric implements ModInitializer {
                                         net.minecraft.commands.CommandSourceStack source = context.getSource();
                                         try {
                                             var registry = source.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
-                                            java.util.List<String> paths = registry.listElementIds().toList().stream()
-                                                    .map(key -> key.identifier().getPath())
+                                            java.util.List<String> paths = registry.listElementIds().map(key -> key.identifier().getPath())
                                                     .filter(path -> TradeConfig.INSTANCE.allowTreasureEnchantments || (!path.equals("soul_speed") && !path.equals("swift_sneak") && !path.equals("wind_burst")))
                                                     .toList();
                                             return net.minecraft.commands.SharedSuggestionProvider.suggest(paths, builder);

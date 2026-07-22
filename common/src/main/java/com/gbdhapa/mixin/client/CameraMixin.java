@@ -1,8 +1,6 @@
 package com.gbdhapa.mixin.client;
 
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -10,11 +8,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(net.minecraft.client.Camera.class)
 public class CameraMixin {
 
-    @Shadow @Final private net.minecraft.client.Minecraft minecraft;
-
-    @Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
-    private void onExtractRenderState(net.minecraft.client.renderer.state.level.CameraRenderState cameraRenderState, float f, CallbackInfo ci) {
-        if (this.minecraft.player == null) {
+    @Inject(method = "setup", at = @At("HEAD"), cancellable = true)
+    private void onSetup(net.minecraft.world.level.Level level, net.minecraft.world.entity.Entity entity,
+                         boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
+        if (net.minecraft.client.Minecraft.getInstance().player == null) {
             ci.cancel();
         }
     }

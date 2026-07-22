@@ -6,6 +6,8 @@ import com.gbdhapa.network.OpenConfigScreenPayload;
 import com.gbdhapa.network.TradeConfigSyncPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
 
 public class LibrarianfilterFabricClient implements ClientModInitializer {
     @Override
@@ -22,7 +24,7 @@ public class LibrarianfilterFabricClient implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(OpenConfigScreenPayload.ID, (payload, context) -> {
             context.client().execute(() -> {
-                context.client().setScreenAndShow(new FabricTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
+                context.client().setScreen(new FabricTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
             });
         });
 
@@ -37,11 +39,11 @@ public class LibrarianfilterFabricClient implements ClientModInitializer {
                                                 .withStyle(style -> style
                                                         .withColor(net.minecraft.ChatFormatting.RED)
                                                         .withUnderlined(true)
-                                                        .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/reroll config toggle disableTradeRebalance"))
-                                                        .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
+                                                        .withClickEvent(new ClickEvent.RunCommand("/reroll config toggle disableTradeRebalance"))
+                                                        .withHoverEvent(new HoverEvent.ShowText(net.minecraft.network.chat.Component.literal("Click to disable Trade Rebalance")))
                                                 )
                                 );
-                        client.player.sendSystemMessage(warning);
+                        client.player.displayClientMessage(warning, false);
                     }
                 });
             }

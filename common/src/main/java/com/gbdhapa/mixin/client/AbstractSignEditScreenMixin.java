@@ -1,7 +1,8 @@
 package com.gbdhapa.mixin.client;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.font.TextFieldHelper;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
@@ -17,9 +18,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import com.gbdhapa.EnchantmentDescriptions;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.CharacterEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.gbdhapa.EnchantmentInfo;
 
 @Mixin(AbstractSignEditScreen.class)
 public abstract class AbstractSignEditScreenMixin extends Screen {
@@ -36,16 +41,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
     @Unique
     private static final ItemStack ENCHANTED_BOOK_STACK = new ItemStack(Items.ENCHANTED_BOOK);
 
-    @Unique
-    private static class EnchantmentInfo {
-        final String path;
-        final int maxLevel;
 
-        EnchantmentInfo(String path, int maxLevel) {
-            this.path = path;
-            this.maxLevel = maxLevel;
-        }
-    }
 
     @Unique
     private static final List<EnchantmentInfo> ALL_ENCHANTMENTS = List.of(
@@ -126,9 +122,9 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                         }
                     }
                     int maxLevel = 1;
-                    var holderOpt = registry.get(key);
-                    if (holderOpt.isPresent()) {
-                        maxLevel = holderOpt.get().value().getMaxLevel();
+                    var holder = registry.get(key);
+                    if (holder.isPresent()) {
+                        maxLevel = holder.get().value().getMaxLevel();
                     }
                     list.add(new EnchantmentInfo(path, maxLevel));
                 }
@@ -196,13 +192,13 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
         List<EnchantmentInfo> list = getEnchantments();
         List<EnchantmentInfo> matching = new ArrayList<>();
         for (EnchantmentInfo ench : list) {
-            if (ench.path.toLowerCase().startsWith(query)) {
+            if (ench.path().toLowerCase().startsWith(query)) {
                 matching.add(ench);
             }
         }
 
         // Sort: alphabetical
-        matching.sort((a, b) -> a.path.compareTo(b.path));
+        matching.sort((a, b) -> a.path().compareTo(b.path()));
 
         suggestions = matching.size() > 5 ? matching.subList(0, 5) : matching;
         if (suggestions.isEmpty()) {
@@ -219,14 +215,14 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
     private void applySuggestion(EnchantmentInfo suggestion) {
         if (signField != null) {
             signField.selectAll();
-            signField.insertText(suggestion.path);
+            signField.insertText(suggestion.path());
         }
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(net.minecraft.client.input.KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void onKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        int keyCode = event.key();
         if (suggestionsVisible && !suggestions.isEmpty()) {
-            int keyCode = event.key();
             if (keyCode == 264) { // GLFW_KEY_DOWN
                 selectedSuggestionIndex = (selectedSuggestionIndex + 1) % suggestions.size();
                 cir.setReturnValue(true);
@@ -250,29 +246,28 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
     }
 
     @Inject(method = "keyPressed", at = @At("TAIL"))
-    private void postKeyPressed(net.minecraft.client.input.KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void postKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         updateSuggestions();
     }
 
     @Inject(method = "charTyped", at = @At("TAIL"))
-    private void postCharTyped(net.minecraft.client.input.CharacterEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void postCharTyped(CharacterEvent event, CallbackInfoReturnable<Boolean> cir) {
         updateSuggestions();
     }
 
-    @Override
-    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean flag) {
-        if (suggestionsVisible && !suggestions.isEmpty() && event.button() == 0) {
-            double mouseX = event.x();
-            double mouseY = event.y();
-
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
+        if (suggestionsVisible && !suggestions.isEmpty() && button == 0) {
             int boxX = 15;
             int boxY = 30;
 
             int maxNameWidth = 0;
             int maxLevelWidth = 0;
             for (EnchantmentInfo s : suggestions) {
-                maxNameWidth = Math.max(maxNameWidth, this.font.width(s.path));
-                maxLevelWidth = Math.max(maxLevelWidth, this.font.width(getRoman(s.maxLevel)));
+                maxNameWidth = Math.max(maxNameWidth, this.font.width(s.path()));
+                maxLevelWidth = Math.max(maxLevelWidth, this.font.width(getRoman(s.maxLevel())));
             }
             int boxWidth = Math.max(110, 22 + maxNameWidth + 12 + maxLevelWidth + 8);
 
@@ -288,21 +283,21 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                 currentY += 18;
             }
         }
-        return super.mouseClicked(event, flag);
+        return super.mouseClicked(event, doubleClick);
     }
 
-    @Inject(method = "extractRenderState", at = @At("TAIL"))
-    private void onExtractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    @Inject(method = "render", at = @At("TAIL"))
+    private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         if (suggestionsVisible && !suggestions.isEmpty()) {
             int boxX = 15;
             int boxY = 30;
-            
+
             // Calculate responsive box width based on suggestions
             int maxNameWidth = 0;
             int maxLevelWidth = 0;
             for (EnchantmentInfo s : suggestions) {
-                maxNameWidth = Math.max(maxNameWidth, this.font.width(s.path));
-                maxLevelWidth = Math.max(maxLevelWidth, this.font.width(getRoman(s.maxLevel)));
+                maxNameWidth = Math.max(maxNameWidth, this.font.width(s.path()));
+                maxLevelWidth = Math.max(maxLevelWidth, this.font.width(getRoman(s.maxLevel())));
             }
             int boxWidth = Math.max(110, 22 + maxNameWidth + 12 + maxLevelWidth + 8);
 
@@ -311,31 +306,31 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                 EnchantmentInfo s = suggestions.get(i);
                 boolean isSelected = (i == selectedSuggestionIndex);
                 boolean isHovered = (mouseX >= boxX && mouseX <= boxX + boxWidth && mouseY >= currentY - 1 && mouseY < currentY + 17);
-                
+
                 // If selected or hovered, draw background highlight
                 if (isSelected || isHovered) {
                     guiGraphics.fill(boxX, currentY - 1, boxX + boxWidth, currentY + 17, 0x80000000);
                 }
-                
+
                 // Highlighted/hovered text is bright yellow with shadow, inactive is light gray
                 int textColor = (isSelected || isHovered) ? 0xFFFFFF00 : 0xFFCCCCCC;
-                guiGraphics.text(this.font, s.path, boxX + 22, currentY + 4, textColor, true);
+                guiGraphics.drawString(this.font, s.path(), boxX + 22, currentY + 4, textColor, true);
 
                 // Render the enchanted book icon at the start (left side)
-                guiGraphics.fakeItem(ENCHANTED_BOOK_STACK, boxX + 2, currentY);
+                guiGraphics.renderItem(ENCHANTED_BOOK_STACK, boxX + 2, currentY);
 
                 // Render the max level Roman numeral on the right
                 int levelX = boxX + boxWidth - 16;
-                String roman = getRoman(s.maxLevel);
+                String roman = getRoman(s.maxLevel());
                 int levelColor = (isSelected || isHovered) ? 0xFFFFFFFF : 0x88FFFFFF;
-                guiGraphics.text(this.font, roman, levelX, currentY + 4, levelColor, true);
+                guiGraphics.drawString(this.font, roman, levelX, currentY + 4, levelColor, true);
 
                 // If hovered, set tooltip
                 if (isHovered) {
-                    String desc = EnchantmentDescriptions.get(s.path);
+                    String desc = EnchantmentDescriptions.get(s.path());
                     if (desc != null) {
                         List<Component> tooltipText = new ArrayList<>();
-                        String formattedName = s.path.substring(0, 1).toUpperCase() + s.path.substring(1).replace('_', ' ');
+                        String formattedName = s.path().substring(0, 1).toUpperCase() + s.path().substring(1).replace('_', ' ');
                         tooltipText.add(Component.literal("§e" + formattedName));
                         tooltipText.add(Component.literal("§7" + desc));
                         guiGraphics.setComponentTooltipForNextFrame(this.font, tooltipText, mouseX, mouseY);
@@ -346,7 +341,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
             }
 
             // Draw the "Tab/Enter to apply" tip in italicized, translucent white text
-            guiGraphics.text(this.font, "§oTab/Enter to apply", boxX + 6, currentY + 4, 0x55FFFFFF, true);
+            guiGraphics.drawString(this.font, "§oTab/Enter to apply", boxX + 6, currentY + 4, 0x55FFFFFF, true);
         }
     }
 }
