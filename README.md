@@ -55,6 +55,7 @@ The AI reads your recent in-game reroll attempts, logs, villager state, and mod 
    ```
    *(Or for lower-spec PCs: `ollama run qwen2.5-coder:1.5b` or `ollama run llama3.2`)*
 3. If Ollama is not running, the mod will remind you in game chat with instructions and a link!
+4. To change the model or URL, edit `config/librarian-filter.json` (`"ollamaModel"` and `"ollamaUrl"`).
 
 Check wiki, if something new, report issues/suggestions on discord server
 Discord- https://discord.gg/bWWwkFryuA
