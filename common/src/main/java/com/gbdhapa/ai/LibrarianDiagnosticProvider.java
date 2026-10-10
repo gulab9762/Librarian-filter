@@ -20,6 +20,7 @@ public class LibrarianDiagnosticProvider implements DiagnosticProvider {
 
     public static final List<String> SUGGESTED_PROMPTS = List.of(
             "why is reroll not working",
+            "why did price filter fail",
             "give command to generate reroll setup",
             "clear",
             "mod not working",
@@ -50,6 +51,8 @@ public class LibrarianDiagnosticProvider implements DiagnosticProvider {
         // 1. Mod Overview / Wiki reference
         sb.append("--- MOD: LIBRARIAN FILTER ---\n");
         sb.append("Overview: Allows players to reroll villager trades by placing an attached sign with a filter on a workstation (e.g. lectern) and right-clicking it.\n");
+        sb.append("Sign Filter Syntax: '<enchantment> [level] [max_price]' (e.g. 'mending 1 10' or 'unbreaking 3 14').\n");
+        sb.append("- Price filter: When max_price is specified, offers exceeding that emerald cost are rejected. If no rolls meet the price limit, reroll fails with FAILED_PRICE_FILTER.\n");
         sb.append("Commands:\n");
         sb.append("- '/reroll setup': Spawns an unlinked librarian villager, lectern workstation, and attached sign.\n");
         sb.append("- '/reroll config': Opens mod configuration settings.\n");
@@ -79,6 +82,9 @@ public class LibrarianDiagnosticProvider implements DiagnosticProvider {
                 sb.append("  Level: ").append(snapshot.villagerLevel()).append(", XP: ").append(snapshot.villagerXp()).append("\n");
                 sb.append("  Trades Locked (XP > 0): ").append(snapshot.tradesLocked()).append("\n");
                 sb.append("  Existing Offers Count: ").append(snapshot.existingOffersCount()).append("\n");
+            }
+            if (snapshot.lowestAmountFound() != null) {
+                sb.append("Lowest Emerald Cost/Amount Found: ").append(snapshot.lowestAmountFound()).append(" emeralds\n");
             }
             sb.append("Result: ").append(snapshot.outcome()).append("\n");
             sb.append("Reason: ").append(snapshot.reason()).append("\n\n");

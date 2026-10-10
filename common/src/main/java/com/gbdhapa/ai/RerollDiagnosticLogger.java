@@ -26,6 +26,7 @@ public class RerollDiagnosticLogger {
     public enum Outcome {
         SUCCESS,
         FAILED_NO_MATCH,
+        FAILED_PRICE_FILTER,
         NO_WORKSTATION,
         NO_SIGN,
         EMPTY_SIGN,
@@ -57,7 +58,8 @@ public class RerollDiagnosticLogger {
             boolean treasureEnchantmentsAllowed,
             boolean tradeRebalanceActive,
             Outcome outcome,
-            String reason
+            String reason,
+            Integer lowestAmountFound
     ) {}
 
     public static void info(String message, Object... args) {

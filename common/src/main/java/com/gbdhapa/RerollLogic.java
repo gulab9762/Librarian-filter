@@ -55,6 +55,14 @@ public class RerollLogic {
 
     public record SignInfo(BlockPos pos, List<String> lines) {}
 
+    public record RerollAttemptResult(
+            FilterResult result,
+            boolean hasAmountFilter,
+            Integer lowestAmountFound,
+            Integer targetPriceFilter,
+            boolean priceFilterFailed
+    ) {}
+
     public static InteractionResult handleBlockUse(Player player, Level world, BlockPos clickedPos) {
         if (!(world instanceof ServerLevel serverLevel)) {
             return InteractionResult.PASS;
@@ -228,25 +236,34 @@ public class RerollLogic {
         RerollDiagnosticLogger.info("[Reroll] Found eligible villager at {} (Profession: {}, Type: {}, Level: {}, XP: {}, Offers: {}). Starting reroll process...",
                 villager.blockPosition().toShortString(), profName, villagerType, villagerLevel, xp, offersCount);
 
-        FilterResult filterResult = filterTrade(villager, filters, tradeRebalanceActive);
-        RerollDiagnosticLogger.info("[Reroll] Reroll process finished with result: {}", filterResult);
+        RerollAttemptResult rerollResult = filterTrade(villager, filters, tradeRebalanceActive);
+        RerollDiagnosticLogger.info("[Reroll] Reroll process finished with result: {}", rerollResult.result());
 
         villager.refreshBrain(serverLevel);
-        spawnParticles(serverLevel, filterResult, villager, actualWorkstationPos);
+        spawnParticles(serverLevel, rerollResult.result(), villager, actualWorkstationPos);
         cooldownMap.put(playerUUID, Map.of(actualWorkstationPos, currentTime));
 
-        if (filterResult == FilterResult.SUCCESS) {
+        if (rerollResult.result() == FilterResult.SUCCESS) {
             recordSnapshot(playerName, player.blockPosition(), actualWorkstationPos, clickedBlockId, biome, signInfo.pos(),
                     rawLines, parsedFilterDescs, nearbyVillagers.size(), true, profName, villagerType, xp, villagerLevel, false,
                     villager.getOffers().size(), tradeRebalanceActive,
                     RerollDiagnosticLogger.Outcome.SUCCESS,
-                    "Reroll succeeded! Found matching trade offer.");
+                    "Reroll succeeded! Found matching trade offer.",
+                    rerollResult.lowestAmountFound());
+        } else if (rerollResult.priceFilterFailed()) {
+            recordSnapshot(playerName, player.blockPosition(), actualWorkstationPos, clickedBlockId, biome, signInfo.pos(),
+                    rawLines, parsedFilterDescs, nearbyVillagers.size(), true, profName, villagerType, xp, villagerLevel, false,
+                    villager.getOffers().size(), tradeRebalanceActive,
+                    RerollDiagnosticLogger.Outcome.FAILED_PRICE_FILTER,
+                    "Trade failed due to pricing filter! Matching trade was rolled, but lowest emerald cost found was " + rerollResult.lowestAmountFound() + " (filter requested <= " + rerollResult.targetPriceFilter() + " emeralds).",
+                    rerollResult.lowestAmountFound());
         } else {
             recordSnapshot(playerName, player.blockPosition(), actualWorkstationPos, clickedBlockId, biome, signInfo.pos(),
                     rawLines, parsedFilterDescs, nearbyVillagers.size(), true, profName, villagerType, xp, villagerLevel, false,
                     villager.getOffers().size(), tradeRebalanceActive,
                     RerollDiagnosticLogger.Outcome.FAILED_NO_MATCH,
-                    "Reroll tested " + MAX_REROLL_COUNT + " trade combinations without matching the requested filters in biome '" + biome + "'. (Trade Rebalance: " + tradeRebalanceActive + ")");
+                    "Reroll tested " + MAX_REROLL_COUNT + " trade combinations without matching the requested filters in biome '" + biome + "'. (Trade Rebalance: " + tradeRebalanceActive + ")",
+                    null);
         }
 
         return InteractionResult.PASS;
@@ -256,11 +273,21 @@ public class RerollLogic {
                                        List<String> rawLines, List<String> parsedFilters, int nearbyCount,
                                        boolean villagerFound, String prof, String villagerType, int xp, int level, boolean locked,
                                        int offersCount, boolean rebalance, RerollDiagnosticLogger.Outcome outcome, String reason) {
+        recordSnapshot(player, pPos, wPos, blockId, biome, sPos, rawLines, parsedFilters, nearbyCount,
+                villagerFound, prof, villagerType, xp, level, locked, offersCount, rebalance, outcome, reason, null);
+    }
+
+    private static void recordSnapshot(String player, BlockPos pPos, BlockPos wPos, String blockId, String biome, BlockPos sPos,
+                                       List<String> rawLines, List<String> parsedFilters, int nearbyCount,
+                                       boolean villagerFound, String prof, String villagerType, int xp, int level, boolean locked,
+                                       int offersCount, boolean rebalance, RerollDiagnosticLogger.Outcome outcome, String reason,
+                                       Integer lowestAmountFound) {
         String timeStr = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
         RerollDiagnosticLogger.DiagnosticSnapshot snapshot = new RerollDiagnosticLogger.DiagnosticSnapshot(
                 timeStr, player, pPos, wPos, blockId, biome, sPos, rawLines, parsedFilters,
                 nearbyCount, villagerFound, prof, villagerType, xp, level, locked, offersCount,
-                TradeConfig.INSTANCE.allowTreasureEnchantments, rebalance, outcome, reason
+                TradeConfig.INSTANCE.allowTreasureEnchantments, rebalance, outcome, reason,
+                lowestAmountFound
         );
         RerollDiagnosticLogger.recordSnapshot(snapshot);
     }
@@ -278,22 +305,38 @@ public class RerollLogic {
         return false;
     }
 
+    private static int parsePrice(String s) {
+        if (s == null) return 0;
+        String cleaned = s.replaceAll("[^0-9]", "");
+        if (!cleaned.isEmpty()) {
+            try {
+                return Integer.parseInt(cleaned);
+            } catch (NumberFormatException ignored) {}
+        }
+        return 0;
+    }
+
     private static List<TradeFilter> getEnchFilters(List<String> signTexts) {
         List<TradeFilter> filters = new ArrayList<>();
         if (signTexts != null) {
             for (String line : signTexts) {
                 if (line != null && !line.trim().isEmpty()) {
                     String[] filterText = line.trim().split("\\s+");
-                    if (filterText.length > 1) {
-                        if (StringUtils.isNumeric(filterText[1])) {
-                            int enchLevel = Integer.parseInt(filterText[1]);
-                            if (enchLevel > 0) {
-                                if (filterText.length > 2 && StringUtils.isNumeric(filterText[2])) {
-                                    int price = Integer.parseInt(filterText[2]);
-                                    filters.add(new TradeFilter(filterText[0], enchLevel, price));
-                                } else {
-                                    filters.add(new TradeFilter(filterText[0], enchLevel, 0));
-                                }
+                    if (filterText.length > 2) {
+                        int enchLevel = StringUtils.isNumeric(filterText[1]) ? Integer.parseInt(filterText[1]) : 0;
+                        int price = parsePrice(filterText[2]);
+                        filters.add(new TradeFilter(filterText[0], enchLevel, price));
+                    } else if (filterText.length == 2) {
+                        String token = filterText[1];
+                        if (token.contains("e") || token.contains("<") || token.contains(">")) {
+                            int price = parsePrice(token);
+                            filters.add(new TradeFilter(filterText[0], 0, price));
+                        } else if (StringUtils.isNumeric(token)) {
+                            int num = Integer.parseInt(token);
+                            if (num > 5) {
+                                filters.add(new TradeFilter(filterText[0], 0, num));
+                            } else {
+                                filters.add(new TradeFilter(filterText[0], num, 0));
                             }
                         } else {
                             filters.add(new TradeFilter(filterText[0], 0, 0));
@@ -411,15 +454,19 @@ public class RerollLogic {
         return null;
     }
 
-    private static FilterResult filterTrade(Villager villager, List<TradeFilter> filters, boolean tradeRebalanceActive) {
+    private static RerollAttemptResult filterTrade(Villager villager, List<TradeFilter> filters, boolean tradeRebalanceActive) {
         RegistryAccess access = villager.level().registryAccess();
         int recycleCount = 0;
         MerchantOffers originalOffers = villager.getOffers();
 
         if (checkIfPlayerHasTradedLastOffers(originalOffers)) {
             RerollDiagnosticLogger.warn("[Reroll] Villager offers have uses > 0 (player already traded with this villager). Trades cannot be rerolled!");
-            return FilterResult.FAILED;
+            return new RerollAttemptResult(FilterResult.FAILED, false, null, 0, false);
         }
+
+        boolean hasAmountFilter = filters.stream().anyMatch(f -> f.price > 0);
+        int lowestAmountFound = Integer.MAX_VALUE;
+        int targetPriceFilter = 0;
 
         while (recycleCount <= MAX_REROLL_COUNT) {
             VillagerData data = villager.getVillagerData();
@@ -438,27 +485,77 @@ public class RerollLogic {
             for (MerchantOffer trade : offers) {
                 if (profession.is(VillagerProfession.LIBRARIAN)) {
                     if (trade.getResult().getItem() == Items.ENCHANTED_BOOK) {
-                        if (filterEnchantmentBook(filters, trade) == FilterResult.SUCCESS) {
-                            applyNewOffers(villager, originalOffers, offers);
-                            RerollDiagnosticLogger.info("[Reroll] Successfully matched enchanted book trade after {} attempts! Emerald cost: {}",
-                                    recycleCount, trade.getCostA().getCount());
-                            return FilterResult.SUCCESS;
+                        TradeFilter matchedFilter = findMatchingEnchantmentFilter(filters, trade);
+                        if (matchedFilter != null) {
+                            int cost = trade.getCostA().getCount();
+                            if (matchedFilter.price > 0) {
+                                if (cost < lowestAmountFound) {
+                                    lowestAmountFound = cost;
+                                    targetPriceFilter = matchedFilter.price;
+                                }
+                                if (cost <= matchedFilter.price) {
+                                    applyNewOffers(villager, originalOffers, offers);
+                                    RerollDiagnosticLogger.info("[Reroll] Successfully matched enchanted book trade after {} attempts! Emerald cost: {} (lowest amount found: {})",
+                                            recycleCount, cost, lowestAmountFound);
+                                    return new RerollAttemptResult(FilterResult.SUCCESS, true, lowestAmountFound, targetPriceFilter, false);
+                                }
+                            } else {
+                                applyNewOffers(villager, originalOffers, offers);
+                                if (hasAmountFilter && lowestAmountFound != Integer.MAX_VALUE) {
+                                    RerollDiagnosticLogger.info("[Reroll] Successfully matched enchanted book trade after {} attempts! Emerald cost: {} (lowest amount found: {})",
+                                            recycleCount, cost, Math.min(lowestAmountFound, cost));
+                                } else {
+                                    RerollDiagnosticLogger.info("[Reroll] Successfully matched enchanted book trade after {} attempts! Emerald cost: {}",
+                                            recycleCount, cost);
+                                }
+                                return new RerollAttemptResult(FilterResult.SUCCESS, hasAmountFilter, (hasAmountFilter && lowestAmountFound != Integer.MAX_VALUE) ? Math.min(lowestAmountFound, cost) : null, targetPriceFilter, false);
+                            }
                         }
                     }
-                } else if (filterTrades(filters, trade) == FilterResult.SUCCESS) {
-                    applyNewOffers(villager, originalOffers, offers);
-                    RerollDiagnosticLogger.info("[Reroll] Successfully matched item trade after {} attempts!", recycleCount);
-                    return FilterResult.SUCCESS;
+                } else {
+                    for (TradeFilter filter : filters) {
+                        if (matchesTradeFilter(filter, trade)) {
+                            int cost = trade.getCostA().getCount();
+                            if (filter.price > 0) {
+                                if (cost < lowestAmountFound) {
+                                    lowestAmountFound = cost;
+                                    targetPriceFilter = filter.price;
+                                }
+                                if (cost <= filter.price) {
+                                    applyNewOffers(villager, originalOffers, offers);
+                                    RerollDiagnosticLogger.info("[Reroll] Successfully matched item trade after {} attempts! Emerald cost: {} (lowest amount found: {})",
+                                            recycleCount, cost, lowestAmountFound);
+                                    return new RerollAttemptResult(FilterResult.SUCCESS, true, lowestAmountFound, targetPriceFilter, false);
+                                }
+                            } else {
+                                applyNewOffers(villager, originalOffers, offers);
+                                RerollDiagnosticLogger.info("[Reroll] Successfully matched item trade after {} attempts!", recycleCount);
+                                return new RerollAttemptResult(FilterResult.SUCCESS, hasAmountFilter, null, targetPriceFilter, false);
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        RerollDiagnosticLogger.warn("[Reroll] Reached maximum cycle count ({}) without finding a matching trade. (TradeRebalance active: {}, allowTreasureEnchantments: {})",
-                MAX_REROLL_COUNT, tradeRebalanceActive, TradeConfig.INSTANCE.allowTreasureEnchantments);
-
         villager.setOffers(new MerchantOffers());
         villager.setOffers(originalOffers);
-        return FilterResult.FAILED;
+
+        if (hasAmountFilter) {
+            if (lowestAmountFound != Integer.MAX_VALUE) {
+                RerollDiagnosticLogger.warn("[Reroll] Trade failed due to pricing filter! Reached maximum cycle count ({}) without finding emerald cost <= {}. Lowest amount found: {} emeralds.",
+                        MAX_REROLL_COUNT, targetPriceFilter, lowestAmountFound);
+                return new RerollAttemptResult(FilterResult.FAILED, true, lowestAmountFound, targetPriceFilter, true);
+            } else {
+                RerollDiagnosticLogger.warn("[Reroll] Reached maximum cycle count ({}) without finding a matching trade (price filter was used, but matching trade never rolled).",
+                        MAX_REROLL_COUNT);
+                return new RerollAttemptResult(FilterResult.FAILED, true, null, targetPriceFilter, false);
+            }
+        } else {
+            RerollDiagnosticLogger.warn("[Reroll] Reached maximum cycle count ({}) without finding a matching trade. (TradeRebalance active: {}, allowTreasureEnchantments: {})",
+                    MAX_REROLL_COUNT, tradeRebalanceActive, TradeConfig.INSTANCE.allowTreasureEnchantments);
+            return new RerollAttemptResult(FilterResult.FAILED, false, null, 0, false);
+        }
     }
 
     private static void applyNewOffers(Villager villager, MerchantOffers originalOffers, MerchantOffers newOffers) {
@@ -519,7 +616,7 @@ public class RerollLogic {
         }
     }
 
-    private static FilterResult filterEnchantmentBook(List<TradeFilter> filters, MerchantOffer trade) {
+    private static TradeFilter findMatchingEnchantmentFilter(List<TradeFilter> filters, MerchantOffer trade) {
         ItemEnchantments enchantments = trade.getResult().getOrDefault(DataComponents.STORED_ENCHANTMENTS,
                 ItemEnchantments.EMPTY);
         for (var entry : enchantments.entrySet()) {
@@ -531,9 +628,7 @@ public class RerollLogic {
                 int expectedLevel = filter.enchLevel == 0 ? enchHolder.value().getMaxLevel() : filter.enchLevel;
                 if (enchName.toLowerCase().startsWith(filter.filterName.toLowerCase())) {
                     if (enchBookLevel == expectedLevel) {
-                        if (filter.price == 0 || trade.getCostA().getCount() <= filter.price) {
-                            return FilterResult.SUCCESS;
-                        }
+                        return filter;
                     }
                 }
             }
@@ -541,20 +636,32 @@ public class RerollLogic {
         return null;
     }
 
-    private static FilterResult filterTrades(List<TradeFilter> filters, MerchantOffer trade) {
-        String sellItemName = trade.getResult().getItemName().getString().toLowerCase();
-        if (filters.stream().anyMatch(f -> sellItemName.contains(formatFilterName(f))))
-            return FilterResult.SUCCESS;
-
-        String buyItem1Name = trade.getCostA().getItemName().getString().toLowerCase();
-        if (filters.stream().anyMatch(f -> buyItem1Name.contains(formatFilterName(f))))
-            return FilterResult.SUCCESS;
-
+    private static boolean matchesTradeFilter(TradeFilter f, MerchantOffer trade) {
+        String formatted = formatFilterName(f);
+        if (trade.getResult().getItemName().getString().toLowerCase().contains(formatted)) return true;
+        if (trade.getCostA().getItemName().getString().toLowerCase().contains(formatted)) return true;
         ItemStack costB = trade.getCostB();
-        if (costB != ItemStack.EMPTY) {
-            String buyItem2Name = costB.getItemName().getString().toLowerCase();
-            if (filters.stream().anyMatch(f -> buyItem2Name.contains(formatFilterName(f))))
+        if (costB != ItemStack.EMPTY && costB.getItemName().getString().toLowerCase().contains(formatted)) return true;
+        return false;
+    }
+
+    private static FilterResult filterEnchantmentBook(List<TradeFilter> filters, MerchantOffer trade) {
+        TradeFilter filter = findMatchingEnchantmentFilter(filters, trade);
+        if (filter != null) {
+            if (filter.price == 0 || trade.getCostA().getCount() <= filter.price) {
                 return FilterResult.SUCCESS;
+            }
+        }
+        return null;
+    }
+
+    private static FilterResult filterTrades(List<TradeFilter> filters, MerchantOffer trade) {
+        for (TradeFilter filter : filters) {
+            if (matchesTradeFilter(filter, trade)) {
+                if (filter.price == 0 || trade.getCostA().getCount() <= filter.price) {
+                    return FilterResult.SUCCESS;
+                }
+            }
         }
         return null;
     }
