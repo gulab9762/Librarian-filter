@@ -54,8 +54,8 @@ public class AiDebugger {
         }
 
         // 1. Log prompt to console/latest.log and display in in-game chat
-        LOGGER.info("[{} AI] Player '{}' requested AI prompt: \"{}\"",
-                modName, (targetPlayer != null ? targetPlayer.getScoreboardName() : "Server"), finalQuery);
+        // LOGGER.info("[{} AI] Player '{}' requested AI prompt: \"{}\"",
+        //         modName, (targetPlayer != null ? targetPlayer.getScoreboardName() : "Server"), finalQuery);
 
         sendMessage(source, targetPlayer,
                 Component.literal("[" + modName + " AI] ").withStyle(ChatFormatting.GOLD)
@@ -143,8 +143,8 @@ public class AiDebugger {
                     + "Player Question:\n" + finalQuery
                     + "\n\n(Context & In-Game Reference):\n" + context;
 
-            LOGGER.info("[{} AI] Querying Ollama (model: '{}'):\nSystem: {}\nQuery: {}",
-                    modName, activeModel, systemPrompt, fullUserQuery);
+            // LOGGER.info("[{} AI] Querying Ollama (model: '{}'):\nSystem: {}\nQuery: {}",
+            //         modName, activeModel, systemPrompt, fullUserQuery);
 
             // 4. Send request to Ollama
             OllamaClient.generate(workingUrl, activeModel, systemPrompt, fullUserQuery)
