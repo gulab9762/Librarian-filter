@@ -19,11 +19,22 @@ public class TradeConfig {
     public boolean disableTradeRebalance = false;
     public boolean enableSignSuggestions = true;
     public boolean allowTreasureEnchantments = false;
+    public String ollamaUrl = "http://127.0.0.1:11434";
+    public String ollamaModel = "qwen2.5-coder:7b";
 
     public static void load() {
         if (CONFIG_FILE.exists()) {
             try (FileReader reader = new FileReader(CONFIG_FILE)) {
                 INSTANCE = GSON.fromJson(reader, TradeConfig.class);
+                if (INSTANCE == null) {
+                    INSTANCE = new TradeConfig();
+                }
+                if (INSTANCE.ollamaUrl == null || INSTANCE.ollamaUrl.trim().isEmpty()) {
+                    INSTANCE.ollamaUrl = "http://127.0.0.1:11434";
+                }
+                if (INSTANCE.ollamaModel == null || INSTANCE.ollamaModel.trim().isEmpty()) {
+                    INSTANCE.ollamaModel = "qwen2.5-coder:7b";
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }

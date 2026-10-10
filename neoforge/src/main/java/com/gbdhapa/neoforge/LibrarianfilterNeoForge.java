@@ -196,6 +196,45 @@ public class LibrarianfilterNeoForge {
                             }
                         })
                 )
+                .then(Commands.literal("clear")
+                        .executes(context -> {
+                            return com.gbdhapa.ai.AiDiagnosticHelper.clearContext(context.getSource());
+                        })
+                )
+                .then(Commands.literal("ai")
+                        .executes(context -> {
+                            return com.gbdhapa.ai.AiDiagnosticHelper.handleCommand(context.getSource(), null);
+                        })
+                        .then(Commands.literal("clear")
+                                .executes(context -> {
+                                    return com.gbdhapa.ai.AiDiagnosticHelper.clearContext(context.getSource());
+                                })
+                        )
+                        .then(Commands.argument("prompt", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                                .suggests((context, builder) -> com.gbdhapa.ai.AiDiagnosticHelper.suggestPrompts(builder))
+                                .executes(context -> {
+                                    String prompt = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "prompt");
+                                    return com.gbdhapa.ai.AiDiagnosticHelper.handleCommand(context.getSource(), prompt);
+                                })
+                        )
+                )
+                .then(Commands.literal("debug")
+                        .executes(context -> {
+                            return com.gbdhapa.ai.AiDiagnosticHelper.handleCommand(context.getSource(), "Diagnose why reroll is not working based on recent logs and workstation state.");
+                        })
+                        .then(Commands.literal("clear")
+                                .executes(context -> {
+                                    return com.gbdhapa.ai.AiDiagnosticHelper.clearContext(context.getSource());
+                                })
+                        )
+                        .then(Commands.argument("prompt", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                                .suggests((context, builder) -> com.gbdhapa.ai.AiDiagnosticHelper.suggestPrompts(builder))
+                                .executes(context -> {
+                                    String prompt = com.mojang.brigadier.arguments.StringArgumentType.getString(context, "prompt");
+                                    return com.gbdhapa.ai.AiDiagnosticHelper.handleCommand(context.getSource(), prompt);
+                                })
+                        )
+                )
         );
     }
 
