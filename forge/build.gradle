@@ -8,7 +8,7 @@ tasks.named('jar') {
 }
 
 minecraft {
-    mappings channel: 'official', version: '26.2'
+    mappings channel: 'official', version: '1.21.11'
 
     runs {
         client {
@@ -33,7 +33,7 @@ dependencies {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 25
+    it.options.release = 21
 }
 
 tasks.named('compileJava', JavaCompile) {
@@ -42,11 +42,11 @@ tasks.named('compileJava', JavaCompile) {
 
 java {
     withSourcesJar()
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
