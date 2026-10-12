@@ -11,6 +11,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
@@ -36,6 +37,89 @@ import java.util.*;
 public class LibrarianCore {
 
     public record MatchResult(Holder.Reference<Enchantment> holder, int level) {}
+
+    /**
+     * Researched map of vanilla enchantments at their MAXIMUM level with their absolute
+     * LOWEST possible emerald price in vanilla Minecraft.
+     *
+     * In vanilla, the emerald price formula is:
+     *   base = 2 + random(0 .. 4 + level * 10) + 3 * level
+     * Minimum base price occurs when random is 0:
+     *   minBase = 2 + 3 * level
+     * If the enchantment is tagged as #minecraft:double_trade_price (treasure), the cost is doubled:
+     *   minCost = (2 + 3 * level) * 2
+     */
+    public static final Map<String, Integer> LOWEST_PRICES_FOR_MAX_LEVEL = Map.ofEntries(
+            // Level 5 (min: 2 + 3*5 = 17 emeralds)
+            Map.entry("efficiency", 17),
+            Map.entry("sharpness", 17),
+            Map.entry("smite", 17),
+            Map.entry("bane_of_arthropods", 17),
+            Map.entry("power", 17),
+            Map.entry("impaling", 17),
+            Map.entry("density", 17),
+
+            // Level 4 (min: 2 + 3*4 = 14 emeralds)
+            Map.entry("protection", 14),
+            Map.entry("fire_protection", 14),
+            Map.entry("feather_falling", 14),
+            Map.entry("blast_protection", 14),
+            Map.entry("projectile_protection", 14),
+            Map.entry("piercing", 14),
+            Map.entry("breach", 14),
+
+            // Level 3 (min: 2 + 3*3 = 11 emeralds; treasure/double: 22 emeralds)
+            Map.entry("unbreaking", 11),
+            Map.entry("fortune", 11),
+            Map.entry("looting", 11),
+            Map.entry("respiration", 11),
+            Map.entry("quick_charge", 11),
+            Map.entry("depth_strider", 11),
+            Map.entry("thorns", 11),
+            Map.entry("sweeping_edge", 11),
+            Map.entry("loyalty", 11),
+            Map.entry("riptide", 11),
+            Map.entry("luck_of_the_sea", 11),
+            Map.entry("lure", 11),
+            Map.entry("soul_speed", 22),
+            Map.entry("swift_sneak", 22),
+            Map.entry("wind_burst", 22),
+
+            // Level 2 (min: 2 + 3*2 = 8 emeralds; treasure/double: 16 emeralds)
+            Map.entry("fire_aspect", 8),
+            Map.entry("knockback", 8),
+            Map.entry("punch", 8),
+            Map.entry("frost_walker", 16),
+
+            // Level 1 (min: 2 + 3*1 = 5 emeralds; treasure/double: 10 emeralds)
+            Map.entry("silk_touch", 5),
+            Map.entry("infinity", 5),
+            Map.entry("flame", 5),
+            Map.entry("aqua_affinity", 5),
+            Map.entry("multishot", 5),
+            Map.entry("channeling", 5),
+            Map.entry("mending", 10),
+            Map.entry("binding_curse", 10),
+            Map.entry("vanishing_curse", 10)
+    );
+
+    public static int getLowestPrice(Holder.Reference<Enchantment> holder, int level) {
+        String path = holder.key().identifier().getPath().toLowerCase(Locale.ROOT);
+        Enchantment enchantment = holder.value();
+
+        // 1. Check researched map if enchantment is at max level
+        if (level == enchantment.getMaxLevel() && LOWEST_PRICES_FOR_MAX_LEVEL.containsKey(path)) {
+            return LOWEST_PRICES_FOR_MAX_LEVEL.get(path);
+        }
+
+        // 2. Dynamic formula for custom levels, lower levels, or modded enchantments
+        boolean isDoublePrice = holder.is(EnchantmentTags.DOUBLE_TRADE_PRICE);
+        int cost = 2 + 3 * level;
+        if (isDoublePrice) {
+            cost *= 2;
+        }
+        return Math.max(1, Math.min(64, cost));
+    }
 
     public static InteractionResult handleRightClick(Player player, Level level, BlockPos clickedPos, InteractionHand hand) {
         if (hand != InteractionHand.MAIN_HAND) {
@@ -262,9 +346,10 @@ public class LibrarianCore {
 
         ItemStack bookStack = EnchantmentHelper.createBook(new EnchantmentInstance(holder, level));
 
-        int targetIndex = -1;
-        int emeraldCost = Math.min(64, Math.max(5, 5 + level * 3));
+        // Always give the lowest price possible for this enchantment and level
+        int emeraldCost = getLowestPrice(holder, level);
 
+        int targetIndex = -1;
         if (!offers.isEmpty()) {
             int size = offers.size();
             int startIndex = Math.max(0, size - 2);
@@ -276,11 +361,6 @@ public class LibrarianCore {
             }
             if (targetIndex == -1) {
                 targetIndex = size - 1;
-            }
-
-            MerchantOffer oldOffer = offers.get(targetIndex);
-            if (oldOffer.getBaseCostA().is(Items.EMERALD) && oldOffer.getBaseCostA().getCount() > 0) {
-                emeraldCost = oldOffer.getBaseCostA().getCount();
             }
         }
 
@@ -310,7 +390,8 @@ public class LibrarianCore {
         serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
 
         String enchName = match.holder().value().description().getString();
-        player.sendSystemMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level()));
+        int lowestCost = getLowestPrice(match.holder(), match.level());
+        player.sendSystemMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"));
     }
 
     private static void sendFailure(ServerLevel serverLevel, Player player, Villager villager, BlockPos fallbackPos, String reason) {
