@@ -2,9 +2,13 @@ package com.gbdhapa.forge;
 
 import com.gbdhapa.CommonClass;
 import com.gbdhapa.Constants;
+import com.gbdhapa.LibrarianCore;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
@@ -16,6 +20,23 @@ public class LibrarianfilterForge {
         CommonClass.init();
 
         RegisterCommandsEvent.BUS.addListener(this::registerCommands);
+        PlayerInteractEvent.RightClickBlock.BUS.addListener(this::onRightClickBlock);
+    }
+
+    private boolean onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getHand() != InteractionHand.MAIN_HAND) {
+            return false;
+        }
+
+        InteractionResult result = LibrarianCore.handleRightClick(
+                event.getEntity(),
+                event.getLevel(),
+                event.getPos(),
+                event.getHand()
+        );
+
+        event.setCancellationResult(result);
+        return result.consumesAction();
     }
 
     private void registerCommands(RegisterCommandsEvent event) {
