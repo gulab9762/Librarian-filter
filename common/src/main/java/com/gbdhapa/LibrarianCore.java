@@ -25,12 +25,8 @@ import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.CeilingHangingSignBlock;
-import net.minecraft.world.level.block.SignBlock;
-import net.minecraft.world.level.block.WallSignBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -46,8 +42,13 @@ public class LibrarianCore {
             return InteractionResult.PASS;
         }
 
-        BlockEntity blockEntity = level.getBlockEntity(clickedPos);
-        if (!(blockEntity instanceof SignBlockEntity signEntity)) {
+        BlockState clickedState = level.getBlockState(clickedPos);
+        if (!clickedState.is(Blocks.LECTERN)) {
+            return InteractionResult.PASS;
+        }
+
+        SignBlockEntity signEntity = findAttachedSign(level, clickedPos, clickedState);
+        if (signEntity == null) {
             return InteractionResult.PASS;
         }
 
@@ -57,43 +58,73 @@ public class LibrarianCore {
             return InteractionResult.PASS;
         }
 
-        BlockPos lecternPos = findAttachedLectern(level, clickedPos);
-        if (lecternPos == null) {
-            return InteractionResult.PASS;
-        }
-
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
 
         ServerLevel serverLevel = (ServerLevel) level;
 
-        Villager villager = findAssignedVillager(serverLevel, lecternPos);
+        Villager villager = findAssignedVillager(serverLevel, clickedPos);
         if (villager == null) {
-            sendFailure(serverLevel, player, null, lecternPos, "No villager found with this lectern as their job station.");
+            sendFailure(serverLevel, player, null, clickedPos, "No villager found with this lectern as their job station.");
             return InteractionResult.SUCCESS;
         }
 
         if (hasTradedForCurrentLevel(villager)) {
-            sendFailure(serverLevel, player, villager, lecternPos, "Villager has already been traded with at their current level.");
+            sendFailure(serverLevel, player, villager, clickedPos, "Villager has already been traded with at their current level.");
             return InteractionResult.SUCCESS;
         }
 
         MatchResult match = findMatchingEnchantment(serverLevel, rawLines);
         if (match == null) {
             String filterSummary = String.join(", ", rawLines.stream().map(String::trim).filter(s -> !s.isEmpty()).toList());
-            sendFailure(serverLevel, player, villager, lecternPos, "No matching enchantment found in game registry for: " + filterSummary);
+            sendFailure(serverLevel, player, villager, clickedPos, "No matching enchantment found in game registry for: " + filterSummary);
             return InteractionResult.SUCCESS;
         }
 
         boolean updated = applyEnchantedBookTrade(villager, match.holder(), match.level());
         if (!updated) {
-            sendFailure(serverLevel, player, villager, lecternPos, "Failed to update villager trades.");
+            sendFailure(serverLevel, player, villager, clickedPos, "Failed to update villager trades.");
             return InteractionResult.SUCCESS;
         }
 
         sendSuccess(serverLevel, player, villager, match);
         return InteractionResult.SUCCESS;
+    }
+
+    public static SignBlockEntity findAttachedSign(Level level, BlockPos lecternPos, BlockState lecternState) {
+        List<BlockPos> candidates = new ArrayList<>();
+
+        if (lecternState.hasProperty(LecternBlock.FACING)) {
+            Direction facing = lecternState.getValue(LecternBlock.FACING);
+            candidates.add(lecternPos.relative(facing));
+            candidates.add(lecternPos.relative(facing.getOpposite()));
+        }
+
+        for (Direction dir : Direction.Plane.HORIZONTAL) {
+            BlockPos p = lecternPos.relative(dir);
+            if (!candidates.contains(p)) {
+                candidates.add(p);
+            }
+        }
+
+        candidates.add(lecternPos.above());
+        candidates.add(lecternPos.below());
+
+        SignBlockEntity fallbackSign = null;
+        for (BlockPos pos : candidates) {
+            if (level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
+                List<String> lines = getSignLines(sign);
+                if (lines.stream().anyMatch(s -> !s.isBlank())) {
+                    return sign;
+                }
+                if (fallbackSign == null) {
+                    fallbackSign = sign;
+                }
+            }
+        }
+
+        return fallbackSign;
     }
 
     public static List<String> getSignLines(SignBlockEntity signEntity) {
@@ -113,42 +144,6 @@ public class LibrarianCore {
             }
         }
         return lines;
-    }
-
-    public static BlockPos findAttachedLectern(Level level, BlockPos signPos) {
-        BlockState state = level.getBlockState(signPos);
-        Block block = state.getBlock();
-
-        if (state.hasProperty(WallSignBlock.FACING)) {
-            Direction facing = state.getValue(WallSignBlock.FACING);
-            BlockPos attached = signPos.relative(facing.getOpposite());
-            if (level.getBlockState(attached).is(Blocks.LECTERN)) {
-                return attached;
-            }
-        }
-
-        if (block instanceof SignBlock) {
-            BlockPos below = signPos.below();
-            if (level.getBlockState(below).is(Blocks.LECTERN)) {
-                return below;
-            }
-        }
-
-        if (block instanceof CeilingHangingSignBlock) {
-            BlockPos above = signPos.above();
-            if (level.getBlockState(above).is(Blocks.LECTERN)) {
-                return above;
-            }
-        }
-
-        for (Direction dir : Direction.values()) {
-            BlockPos neighbor = signPos.relative(dir);
-            if (level.getBlockState(neighbor).is(Blocks.LECTERN)) {
-                return neighbor;
-            }
-        }
-
-        return null;
     }
 
     public static Villager findAssignedVillager(ServerLevel serverLevel, BlockPos lecternPos) {
