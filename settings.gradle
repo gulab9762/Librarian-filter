@@ -24,5 +24,6 @@ pluginManagement {
 rootProject.name = 'librarian-filter'
 
 include 'common'
-include 'forge'
-// include 'quilt'
+include 'fabric'
+include 'neoforge'
+// include 'forge'

@@ -24,8 +24,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-import net.minecraft.world.entity.npc.villager.Villager;
-import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -66,7 +66,7 @@ public class LibrarianCommands {
                                 .suggests((context, builder) -> {
                                     var registry = context.getSource().getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
                                     return SharedSuggestionProvider.suggest(
-                                            registry.listElements().map(h -> h.key().identifier().getPath()),
+                                            registry.listElements().map(h -> h.key().location().getPath()),
                                             builder
                                     );
                                 })
@@ -189,7 +189,7 @@ public class LibrarianCommands {
         var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
 
         List<Holder.Reference<Enchantment>> enchantments = registry.listElements()
-                .sorted(Comparator.comparing(h -> h.key().identifier().getPath()))
+                .sorted(Comparator.comparing(h -> h.key().location().getPath()))
                 .toList();
 
         if (enchantments.isEmpty()) {
@@ -211,7 +211,7 @@ public class LibrarianCommands {
 
         for (int i = start; i < end; i++) {
             Holder.Reference<Enchantment> holder = enchantments.get(i);
-            String path = holder.key().identifier().getPath();
+            String path = holder.key().location().getPath();
             Enchantment ench = holder.value();
             int maxLevel = ench.getMaxLevel();
             String desc = ench.description().getString();

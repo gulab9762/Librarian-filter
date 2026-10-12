@@ -1,10 +1,6 @@
 {
   "pack": {
     "description": "Librarian Filter Resources",
-    "min_format": [
-      107,
-      1
-    ],
-    "max_format": 107
+    "pack_format": 48
   }
 }

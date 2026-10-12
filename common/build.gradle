@@ -17,6 +17,7 @@ repositories {
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	
 	compileOnly "org.spongepowered:mixin:0.8.5"
 }
 

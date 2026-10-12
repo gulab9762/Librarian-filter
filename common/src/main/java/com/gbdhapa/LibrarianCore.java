@@ -7,7 +7,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -15,7 +15,7 @@ import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -101,7 +101,7 @@ public class LibrarianCore {
     );
 
     public static int getLowestPrice(Holder.Reference<Enchantment> holder, int level) {
-        String path = holder.key().identifier().getPath().toLowerCase(Locale.ROOT);
+        String path = holder.key().location().getPath().toLowerCase(Locale.ROOT);
         Enchantment enchantment = holder.value();
 
         if (level == enchantment.getMaxLevel() && LOWEST_PRICES_FOR_MAX_LEVEL.containsKey(path)) {
@@ -325,7 +325,7 @@ public class LibrarianCore {
         int bestLength = Integer.MAX_VALUE;
 
         for (Holder.Reference<Enchantment> holder : allEnchantments) {
-            Identifier id = holder.key().identifier();
+            ResourceLocation id = holder.key().location();
             String path = id.getPath().toLowerCase(Locale.ROOT);
             String fullId = id.toString().toLowerCase(Locale.ROOT);
             String desc = holder.value().description().getString().toLowerCase(Locale.ROOT);

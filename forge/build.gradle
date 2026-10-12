@@ -8,7 +8,7 @@ tasks.named('jar') {
 }
 
 minecraft {
-    mappings channel: 'official', version: '1.21.11'
+    mappings channel: 'official', version: "${project.minecraft_version}"
 
     runs {
         client {
@@ -49,7 +49,6 @@ java {
         languageVersion = JavaLanguageVersion.of(21)
     }
 }
-
 
 processResources {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

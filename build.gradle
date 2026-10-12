@@ -1,5 +1,5 @@
 plugins {
-	id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
+	id 'fabric-loom' version "${loom_version}" apply false
 	id 'net.neoforged.moddev' version '2.0.141' apply false
 	id 'net.minecraftforge.gradle' version '7.0.40' apply false
 }
