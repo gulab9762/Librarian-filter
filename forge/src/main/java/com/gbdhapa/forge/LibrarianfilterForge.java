@@ -2,9 +2,8 @@ package com.gbdhapa.forge;
 
 import com.gbdhapa.CommonClass;
 import com.gbdhapa.Constants;
+import com.gbdhapa.LibrarianCommands;
 import com.gbdhapa.LibrarianCore;
-import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -40,18 +39,7 @@ public class LibrarianfilterForge {
     }
 
     private void registerCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(Commands.literal("reroll")
-                .executes(context -> {
-                    context.getSource().sendSuccess(() -> Component.literal("Librarian Filter is working!"), false);
-                    return 1;
-                })
-                .then(Commands.literal("config")
-                        .executes(context -> {
-                            context.getSource().sendSuccess(() -> Component.literal("Librarian Filter config is active!"), false);
-                            return 1;
-                        })
-                )
-        );
-        Constants.LOG.info("Registered /reroll command for {}", Constants.MOD_NAME);
+        LibrarianCommands.register(event.getDispatcher());
+        Constants.LOG.info("Registered /reroll commands for {}", Constants.MOD_NAME);
     }
 }
