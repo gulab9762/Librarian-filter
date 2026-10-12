@@ -61,3 +61,47 @@ processResources {
 }
 
 sourceSets.main.output.resourcesDir = layout.buildDirectory.dir("classes/java/main").get().asFile
+task reobfJar(type: JavaExec) {
+    dependsOn 'jar'
+    def home = System.getProperty("user.home")
+    def fartJar = file("${home}/.gradle/caches/minecraftforge/forgegradle/mavenizer/caches/maven/mcp-tools/net/minecraftforge/ForgeAutoRenamingTool/1.1.0/ForgeAutoRenamingTool-1.1.0-all.jar")
+    def tsrgGz = file("${home}/.gradle/caches/minecraftforge/forgegradle/mavenizer/caches/mcp/de/oceanlabs/mcp/mcp_config/1.20.1-20230612.114412/data/mapings/official/1.20.1/official-1.20.1-srg.tsrg.gz")
+    def tsrgFile = file("${layout.buildDirectory.get().asFile}/official-1.20.1-srg.tsrg")
+    def mcJar = file("${rootDir}/.gradle/mavenizer/repo/net/minecraftforge/forge/1.20.1-47.3.0/forge-1.20.1-47.3.0.jar")
+
+    classpath = files(fartJar)
+    mainClass = 'net.minecraftforge.fart.Main'
+
+    doFirst {
+        if (!tsrgFile.exists()) {
+            tsrgFile.parentFile.mkdirs()
+            new java.util.zip.GZIPInputStream(new FileInputStream(tsrgGz)).withCloseable { gin ->
+                new FileOutputStream(tsrgFile).withCloseable { fout ->
+                    fout << gin
+                }
+            }
+        }
+        def rawJar = tasks.named('jar').get().archiveFile.get().asFile
+        def reobfJarFile = file("${rawJar.parentFile}/${rawJar.name.replace('.jar', '-reobf.jar')}")
+        args = [
+            '--input', rawJar.absolutePath,
+            '--output', reobfJarFile.absolutePath,
+            '--map', tsrgFile.absolutePath,
+            '--lib', mcJar.absolutePath
+        ]
+    }
+
+    doLast {
+        def rawJar = tasks.named('jar').get().archiveFile.get().asFile
+        def reobfJarFile = file("${rawJar.parentFile}/${rawJar.name.replace('.jar', '-reobf.jar')}")
+        if (reobfJarFile.exists()) {
+            rawJar.delete()
+            reobfJarFile.renameTo(rawJar)
+            println "Successfully remapped ${rawJar.name} to SRG mappings!"
+        }
+    }
+}
+
+tasks.named('jar') {
+    finalizedBy 'reobfJar'
+}
