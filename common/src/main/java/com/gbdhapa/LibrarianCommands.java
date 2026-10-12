@@ -17,6 +17,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -29,10 +31,12 @@ import java.util.*;
 
 public class LibrarianCommands {
 
+    private static final Map<UUID, Set<UUID>> GLOWING_VILLAGERS_BY_PLAYER = new HashMap<>();
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("reroll")
                 .executes(context -> {
-                    context.getSource().sendSuccess(() -> Component.literal("§a[Librarian Filter] Use §e/reroll list§a to view supported book formats, or §e/reroll find <enchantment>§a to locate offering villagers."), false);
+                    context.getSource().sendSuccess(() -> Component.literal("§a[Librarian Filter] Use §e/reroll list§a to view supported book formats, §e/reroll find <enchantment>§a to locate offering villagers, or §e/reroll clear§a to remove glow."), false);
                     return 1;
                 })
                 .then(Commands.literal("list")
@@ -40,6 +44,9 @@ public class LibrarianCommands {
                         .then(Commands.argument("page", IntegerArgumentType.integer(1))
                                 .executes(context -> executeList(context, IntegerArgumentType.getInteger(context, "page")))
                         )
+                )
+                .then(Commands.literal("clear")
+                        .executes(LibrarianCommands::executeClear)
                 )
                 .then(Commands.literal("find")
                         .then(Commands.argument("enchantment", StringArgumentType.greedyString())
@@ -54,6 +61,35 @@ public class LibrarianCommands {
                         )
                 )
         );
+    }
+
+    private static int executeClear(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("§cThis command must be executed by a player."));
+            return 0;
+        }
+
+        ServerLevel level = source.getLevel();
+        int removed = clearPreviousGlow(level, player.getUUID());
+        source.sendSuccess(() -> Component.literal("§aRemoved glowing effect from " + removed + " previously highlighted villager(s)."), false);
+        return removed;
+    }
+
+    private static int clearPreviousGlow(ServerLevel level, UUID playerUuid) {
+        Set<UUID> previous = GLOWING_VILLAGERS_BY_PLAYER.remove(playerUuid);
+        int count = 0;
+        if (previous != null) {
+            for (UUID id : previous) {
+                Entity entity = level.getEntityInAnyDimension(id);
+                if (entity instanceof LivingEntity living) {
+                    living.removeEffect(MobEffects.GLOWING);
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     private static int executeList(CommandContext<CommandSourceStack> context, int requestedPage) {
@@ -125,8 +161,13 @@ public class LibrarianCommands {
         }
 
         ServerLevel level = source.getLevel();
-        var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        UUID playerUuid = player.getUUID();
 
+        // 1. Remove glow from previously highlighted villagers
+        clearPreviousGlow(level, playerUuid);
+
+        // 2. Find matching enchantment
+        var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         Holder.Reference<Enchantment> matchedEnchantment = LibrarianCore.findEnchantmentHolder(registry.listElements().toList(), query);
         if (matchedEnchantment == null) {
             source.sendFailure(Component.literal("§cNo enchantment found matching: \"" + query + "\""));
@@ -137,6 +178,7 @@ public class LibrarianCommands {
         AABB searchBox = player.getBoundingBox().inflate(96.0);
         List<Villager> nearbyVillagers = level.getEntitiesOfClass(Villager.class, searchBox);
 
+        Set<UUID> newlyFoundVillagers = new HashSet<>();
         int count = 0;
         for (Villager villager : nearbyVillagers) {
             boolean offersTargetBook = false;
@@ -161,13 +203,15 @@ public class LibrarianCommands {
 
             if (offersTargetBook) {
                 villager.addEffect(new MobEffectInstance(MobEffects.GLOWING, 30 * 20, 0, false, false));
+                newlyFoundVillagers.add(villager.getUUID());
                 count++;
             }
         }
 
-        if (count > 0) {
+        if (!newlyFoundVillagers.isEmpty()) {
+            GLOWING_VILLAGERS_BY_PLAYER.put(playerUuid, newlyFoundVillagers);
             final int finalCount = count;
-            source.sendSuccess(() -> Component.literal("§aFound " + finalCount + " librarian(s) offering " + enchantName + "! They are glowing for 30 seconds."), false);
+            source.sendSuccess(() -> Component.literal("§aFound " + finalCount + " librarian(s) offering " + enchantName + "! Previous glow cleared; new ones glowing for 30s."), false);
         } else {
             source.sendFailure(Component.literal("§cNo nearby librarians found offering " + enchantName + " (searched 96-block radius)."));
         }
