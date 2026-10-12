@@ -13,8 +13,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -44,7 +42,7 @@ public class LibrarianCommands {
                         )
                 )
                 .then(Commands.literal("find")
-                        .then(Commands.argument("enchantment", StringArgumentType.string())
+                        .then(Commands.argument("enchantment", StringArgumentType.greedyString())
                                 .suggests((context, builder) -> {
                                     var registry = context.getSource().getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
                                     return SharedSuggestionProvider.suggest(
@@ -129,7 +127,7 @@ public class LibrarianCommands {
         ServerLevel level = source.getLevel();
         var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
 
-        Holder.Reference<Enchantment> matchedEnchantment = findEnchantment(registry.listElements().toList(), query);
+        Holder.Reference<Enchantment> matchedEnchantment = LibrarianCore.findEnchantmentHolder(registry.listElements().toList(), query);
         if (matchedEnchantment == null) {
             source.sendFailure(Component.literal("§cNo enchantment found matching: \"" + query + "\""));
             return 0;
@@ -186,40 +184,5 @@ public class LibrarianCommands {
             return path.substring(0, 4);
         }
         return path;
-    }
-
-    private static Holder.Reference<Enchantment> findEnchantment(List<Holder.Reference<Enchantment>> list, String rawQuery) {
-        String query = rawQuery.trim().toLowerCase(Locale.ROOT);
-        Holder.Reference<Enchantment> bestMatch = null;
-        int bestPriority = Integer.MAX_VALUE;
-        int bestLength = Integer.MAX_VALUE;
-
-        for (Holder.Reference<Enchantment> holder : list) {
-            Identifier id = holder.key().identifier();
-            String path = id.getPath().toLowerCase(Locale.ROOT);
-            String fullId = id.toString().toLowerCase(Locale.ROOT);
-            String desc = holder.value().description().getString().toLowerCase(Locale.ROOT);
-
-            int priority;
-            if (path.equals(query) || desc.equals(query) || fullId.equals(query)) {
-                priority = 1;
-            } else if (path.startsWith(query) || desc.startsWith(query) || fullId.startsWith(query)) {
-                priority = 2;
-            } else if (path.replace("_", "").startsWith(query.replace("_", ""))) {
-                priority = 3;
-            } else if (path.contains(query) || desc.contains(query)) {
-                priority = 4;
-            } else {
-                continue;
-            }
-
-            if (priority < bestPriority || (priority == bestPriority && path.length() < bestLength)) {
-                bestPriority = priority;
-                bestLength = path.length();
-                bestMatch = holder;
-            }
-        }
-
-        return bestMatch;
     }
 }

@@ -33,21 +33,18 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class LibrarianCore {
 
     public record MatchResult(Holder.Reference<Enchantment> holder, int level) {}
 
+    private static final Pattern LEVEL_PATTERN = Pattern.compile("^(.*?)[\\s\\-_:]+(\\d+)$");
+
     /**
      * Researched map of vanilla enchantments at their MAXIMUM level with their absolute
      * LOWEST possible emerald price in vanilla Minecraft.
-     *
-     * In vanilla, the emerald price formula is:
-     *   base = 2 + random(0 .. 4 + level * 10) + 3 * level
-     * Minimum base price occurs when random is 0:
-     *   minBase = 2 + 3 * level
-     * If the enchantment is tagged as #minecraft:double_trade_price (treasure), the cost is doubled:
-     *   minCost = (2 + 3 * level) * 2
      */
     public static final Map<String, Integer> LOWEST_PRICES_FOR_MAX_LEVEL = Map.ofEntries(
             // Level 5 (min: 2 + 3*5 = 17 emeralds)
@@ -107,12 +104,10 @@ public class LibrarianCore {
         String path = holder.key().identifier().getPath().toLowerCase(Locale.ROOT);
         Enchantment enchantment = holder.value();
 
-        // 1. Check researched map if enchantment is at max level
         if (level == enchantment.getMaxLevel() && LOWEST_PRICES_FOR_MAX_LEVEL.containsKey(path)) {
             return LOWEST_PRICES_FOR_MAX_LEVEL.get(path);
         }
 
-        // 2. Dynamic formula for custom levels, lower levels, or modded enchantments
         boolean isDoublePrice = holder.is(EnchantmentTags.DOUBLE_TRADE_PRICE);
         int cost = 2 + 3 * level;
         if (isDoublePrice) {
@@ -274,53 +269,35 @@ public class LibrarianCore {
 
         for (String rawLine : signLines) {
             String cleaned = rawLine.trim();
+            if (cleaned.isEmpty()) {
+                continue;
+            }
             if (cleaned.contains(">")) {
                 cleaned = cleaned.split(">")[0].trim();
             }
 
-            String[] tokens = cleaned.split("[\\s\\-_:]+");
-            if (tokens.length == 0 || tokens[0].isEmpty()) {
+            cleaned = cleaned.replaceAll("[-:]+$", "").trim();
+            if (cleaned.isEmpty()) {
                 continue;
             }
 
-            String query = tokens[0].toLowerCase(Locale.ROOT);
             int requestedLevel = 0;
-            if (tokens.length >= 2) {
+            String textQuery;
+            Matcher levelMatcher = LEVEL_PATTERN.matcher(cleaned);
+            if (levelMatcher.matches()) {
+                textQuery = levelMatcher.group(1).trim();
                 try {
-                    requestedLevel = Integer.parseInt(tokens[1]);
+                    requestedLevel = Integer.parseInt(levelMatcher.group(2));
                 } catch (NumberFormatException ignored) {}
+            } else {
+                textQuery = cleaned;
             }
 
-            Holder.Reference<Enchantment> bestMatch = null;
-            int bestPriority = Integer.MAX_VALUE;
-            int bestLength = Integer.MAX_VALUE;
-
-            for (Holder.Reference<Enchantment> holder : allEnchantments) {
-                Identifier id = holder.key().identifier();
-                String path = id.getPath().toLowerCase(Locale.ROOT);
-                String fullId = id.toString().toLowerCase(Locale.ROOT);
-                String desc = holder.value().description().getString().toLowerCase(Locale.ROOT);
-
-                int priority;
-                if (path.equals(query) || desc.equals(query) || fullId.equals(query)) {
-                    priority = 1;
-                } else if (path.startsWith(query) || desc.startsWith(query) || fullId.startsWith(query)) {
-                    priority = 2;
-                } else if (path.replace("_", "").startsWith(query.replace("_", ""))) {
-                    priority = 3;
-                } else if (path.contains(query) || desc.contains(query)) {
-                    priority = 4;
-                } else {
-                    continue;
-                }
-
-                if (priority < bestPriority || (priority == bestPriority && path.length() < bestLength)) {
-                    bestPriority = priority;
-                    bestLength = path.length();
-                    bestMatch = holder;
-                }
+            if (textQuery.isEmpty()) {
+                continue;
             }
 
+            Holder.Reference<Enchantment> bestMatch = findEnchantmentHolder(allEnchantments, textQuery);
             if (bestMatch != null) {
                 Enchantment ench = bestMatch.value();
                 int maxLevel = ench.getMaxLevel();
@@ -338,6 +315,55 @@ public class LibrarianCore {
         return null;
     }
 
+    public static Holder.Reference<Enchantment> findEnchantmentHolder(List<Holder.Reference<Enchantment>> allEnchantments, String textQuery) {
+        String q = textQuery.trim().toLowerCase(Locale.ROOT);
+        String qClean = q.replaceAll("[^a-z0-9]", "");
+        String qSpaced = q.replace("_", " ");
+
+        Holder.Reference<Enchantment> bestMatch = null;
+        int bestPriority = Integer.MAX_VALUE;
+        int bestLength = Integer.MAX_VALUE;
+
+        for (Holder.Reference<Enchantment> holder : allEnchantments) {
+            Identifier id = holder.key().identifier();
+            String path = id.getPath().toLowerCase(Locale.ROOT);
+            String fullId = id.toString().toLowerCase(Locale.ROOT);
+            String desc = holder.value().description().getString().toLowerCase(Locale.ROOT);
+
+            String pathClean = path.replaceAll("[^a-z0-9]", "");
+            String pathSpaced = path.replace("_", " ");
+            String descClean = desc.replaceAll("[^a-z0-9]", "");
+
+            int priority;
+            // Priority 1: Exact matches (path, spaced, clean alphanumeric, or description)
+            if (path.equals(q) || pathSpaced.equals(qSpaced) || pathClean.equals(qClean) || desc.equals(q) || fullId.equals(q)) {
+                priority = 1;
+            }
+            // Priority 2: Direct prefix match
+            else if (path.startsWith(q) || pathSpaced.startsWith(qSpaced) || desc.startsWith(q) || fullId.startsWith(q)) {
+                priority = 2;
+            }
+            // Priority 3: Clean alphanumeric prefix match
+            else if (!qClean.isEmpty() && (pathClean.startsWith(qClean) || descClean.startsWith(qClean))) {
+                priority = 3;
+            }
+            // Priority 4: Contains substring match as fallback
+            else if (path.contains(q) || pathSpaced.contains(qSpaced) || desc.contains(q) || pathClean.contains(qClean)) {
+                priority = 4;
+            } else {
+                continue;
+            }
+
+            if (priority < bestPriority || (priority == bestPriority && path.length() < bestLength)) {
+                bestPriority = priority;
+                bestLength = path.length();
+                bestMatch = holder;
+            }
+        }
+
+        return bestMatch;
+    }
+
     public static boolean applyEnchantedBookTrade(Villager villager, Holder.Reference<Enchantment> holder, int level) {
         MerchantOffers offers = villager.getOffers();
         if (offers == null) {
@@ -345,8 +371,6 @@ public class LibrarianCore {
         }
 
         ItemStack bookStack = EnchantmentHelper.createBook(new EnchantmentInstance(holder, level));
-
-        // Always give the lowest price possible for this enchantment and level
         int emeraldCost = getLowestPrice(holder, level);
 
         int targetIndex = -1;
