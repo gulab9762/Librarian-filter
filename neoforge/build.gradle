@@ -28,6 +28,7 @@ dependencies {
 }
 
 tasks.withType(Jar).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from project(":common").sourceSets.main.output
 }
 

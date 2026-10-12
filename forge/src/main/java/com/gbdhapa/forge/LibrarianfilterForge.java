@@ -6,6 +6,7 @@ import com.gbdhapa.LibrarianCommands;
 import com.gbdhapa.LibrarianCore;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -18,13 +19,13 @@ public class LibrarianfilterForge {
         Constants.LOG.info("Initializing {} Forge mod!", Constants.MOD_NAME);
         CommonClass.init();
 
-        RegisterCommandsEvent.BUS.addListener(this::registerCommands);
-        PlayerInteractEvent.RightClickBlock.BUS.addListener(this::onRightClickBlock);
+        MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
+        MinecraftForge.EVENT_BUS.addListener(this::onRightClickBlock);
     }
 
-    private boolean onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+    private void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         if (event.getHand() != InteractionHand.MAIN_HAND) {
-            return false;
+            return;
         }
 
         InteractionResult result = LibrarianCore.handleRightClick(
@@ -34,8 +35,10 @@ public class LibrarianfilterForge {
                 event.getHand()
         );
 
-        event.setCancellationResult(result);
-        return result.consumesAction();
+        if (result.consumesAction()) {
+            event.setCanceled(true);
+            event.setCancellationResult(result);
+        }
     }
 
     private void registerCommands(RegisterCommandsEvent event) {

@@ -18,6 +18,7 @@ import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -246,7 +247,7 @@ public class LibrarianCore {
             return false;
         }
 
-        int level = villager.getVillagerData().level();
+        int level = villager.getVillagerData().getLevel();
         if (level == 1 && villager.getVillagerXp() == 0) {
             for (MerchantOffer offer : offers) {
                 if (offer.getUses() > 0) {
@@ -370,7 +371,7 @@ public class LibrarianCore {
             offers = new MerchantOffers();
         }
 
-        ItemStack bookStack = EnchantmentHelper.createBook(new EnchantmentInstance(holder, level));
+        ItemStack bookStack = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(holder, level));
         int emeraldCost = getLowestPrice(holder, level);
 
         int targetIndex = -1;

@@ -134,8 +134,7 @@ public class LibrarianCommands {
         Villager villager = new Villager(EntityType.VILLAGER, level);
         villager.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
 
-        var professionHolder = level.registryAccess().lookupOrThrow(Registries.VILLAGER_PROFESSION).getOrThrow(VillagerProfession.LIBRARIAN);
-        villager.setVillagerData(villager.getVillagerData().withProfession(professionHolder));
+        villager.setVillagerData(villager.getVillagerData().setProfession(VillagerProfession.LIBRARIAN));
         villager.getBrain().setMemory(MemoryModuleType.JOB_SITE, GlobalPos.of(level.dimension(), lecternPos));
         level.addFreshEntity(villager);
 
@@ -174,7 +173,13 @@ public class LibrarianCommands {
         int count = 0;
         if (previous != null) {
             for (UUID id : previous) {
-                Entity entity = level.getEntityInAnyDimension(id);
+                Entity entity = level.getEntity(id);
+            if (entity == null) {
+                for (ServerLevel sl : level.getServer().getAllLevels()) {
+                    entity = sl.getEntity(id);
+                    if (entity != null) break;
+                }
+            }
                 if (entity instanceof LivingEntity living) {
                     living.removeEffect(MobEffects.GLOWING);
                     count++;
@@ -230,13 +235,13 @@ public class LibrarianCommands {
         MutableComponent nav = Component.literal("\u00a76----------------------------------------\n ");
         if (page > 1) {
             MutableComponent prevBtn = Component.literal("\u00a7e[<< Prev] ")
-                    .withStyle(style -> style.withClickEvent(new ClickEvent.RunCommand("/reroll list " + (page - 1))));
+                    .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll list " + (page - 1))));
             nav.append(prevBtn);
         }
         nav.append(Component.literal("\u00a77Page " + page + " of " + totalPages + " "));
         if (page < totalPages) {
             MutableComponent nextBtn = Component.literal("\u00a7e[Next >>]")
-                    .withStyle(style -> style.withClickEvent(new ClickEvent.RunCommand("/reroll list " + (page + 1))));
+                    .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll list " + (page + 1))));
             nav.append(nextBtn);
         }
 

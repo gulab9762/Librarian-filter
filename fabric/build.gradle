@@ -23,7 +23,6 @@ dependencies {
 	
 	
 	implementation project(":common")
-	include project(":common")
 	
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
@@ -44,6 +43,7 @@ java {
 }
 
 processResources {
+	from project(":common").sourceSets.main.resources
 	def version = project.version
 	inputs.property "version", version
 
