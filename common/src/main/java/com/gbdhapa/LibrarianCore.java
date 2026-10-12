@@ -7,7 +7,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -15,7 +15,7 @@ import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -29,6 +29,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
@@ -101,7 +102,7 @@ public class LibrarianCore {
     );
 
     public static int getLowestPrice(Holder.Reference<Enchantment> holder, int level) {
-        String path = holder.key().location().getPath().toLowerCase(Locale.ROOT);
+        String path = holder.key().identifier().getPath().toLowerCase(Locale.ROOT);
         Enchantment enchantment = holder.value();
 
         if (level == enchantment.getMaxLevel() && LOWEST_PRICES_FOR_MAX_LEVEL.containsKey(path)) {
@@ -208,14 +209,14 @@ public class LibrarianCore {
 
     public static List<String> getSignLines(SignBlockEntity signEntity) {
         List<String> lines = new ArrayList<>();
-        for (Component c : signEntity.getFrontText().getMessages(false)) {
+        for (Component c : signEntity.getText(SignTextSlot.FRONT).getMessages(false)) {
             String s = c.getString().trim();
             if (!s.isEmpty()) {
                 lines.add(s);
             }
         }
         if (lines.isEmpty()) {
-            for (Component c : signEntity.getBackText().getMessages(false)) {
+            for (Component c : signEntity.getText(SignTextSlot.BACK).getMessages(false)) {
                 String s = c.getString().trim();
                 if (!s.isEmpty()) {
                     lines.add(s);
@@ -325,7 +326,7 @@ public class LibrarianCore {
         int bestLength = Integer.MAX_VALUE;
 
         for (Holder.Reference<Enchantment> holder : allEnchantments) {
-            ResourceLocation id = holder.key().location();
+            Identifier id = holder.key().identifier();
             String path = id.getPath().toLowerCase(Locale.ROOT);
             String fullId = id.toString().toLowerCase(Locale.ROOT);
             String desc = holder.value().description().getString().toLowerCase(Locale.ROOT);
@@ -415,7 +416,7 @@ public class LibrarianCore {
 
         String enchName = match.holder().value().description().getString();
         int lowestCost = getLowestPrice(match.holder(), match.level());
-        player.displayClientMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"), false);
+        player.sendSystemMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"));
     }
 
     private static void sendFailure(ServerLevel serverLevel, Player player, Villager villager, BlockPos fallbackPos, String reason) {
@@ -427,6 +428,6 @@ public class LibrarianCore {
             serverLevel.playSound(null, fallbackPos.getX() + 0.5, fallbackPos.getY() + 1.0, fallbackPos.getZ() + 0.5, SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 1.0F, 1.0F);
         }
 
-        player.displayClientMessage(Component.literal("§c[Librarian Filter] " + reason), false);
+        player.sendSystemMessage(Component.literal("§c[Librarian Filter] " + reason));
     }
 }

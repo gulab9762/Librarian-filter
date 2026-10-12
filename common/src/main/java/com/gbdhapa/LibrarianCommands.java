@@ -24,8 +24,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.entity.npc.VillagerProfession;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -35,6 +35,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.WallSignBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignTextSlot;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.phys.AABB;
 
 import java.util.*;
@@ -66,7 +69,7 @@ public class LibrarianCommands {
                                 .suggests((context, builder) -> {
                                     var registry = context.getSource().getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
                                     return SharedSuggestionProvider.suggest(
-                                            registry.listElements().map(h -> h.key().location().getPath()),
+                                            registry.listElements().map(h -> h.key().identifier().getPath()),
                                             builder
                                     );
                                 })
@@ -125,13 +128,13 @@ public class LibrarianCommands {
 
         // Set default sign text "eff"
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity signEntity) {
-            signEntity.setText(signEntity.getFrontText().setMessage(0, Component.literal("eff")), true);
+            signEntity.setText(signEntity.getText(SignTextSlot.FRONT).asMutable().setLine(0, Component.literal("eff")).asImmutable(), SignTextSlot.FRONT);
             signEntity.setChanged();
             level.sendBlockUpdated(signPos, signEntity.getBlockState(), signEntity.getBlockState(), 3);
         }
 
         // Spawn Villager at center
-        Villager villager = new Villager(EntityType.VILLAGER, level);
+        Villager villager = new Villager(EntityTypes.VILLAGER, level);
         villager.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
 
         var professionHolder = level.registryAccess().lookupOrThrow(Registries.VILLAGER_PROFESSION).getOrThrow(VillagerProfession.LIBRARIAN);
@@ -151,7 +154,7 @@ public class LibrarianCommands {
 
     private static void giveItem(ServerPlayer player, ItemStack stack) {
         if (!player.addItem(stack)) {
-            player.drop(stack, false);
+            player.drop(stack, false, Prediction.SERVER_ONLY);
         }
     }
 
@@ -189,7 +192,7 @@ public class LibrarianCommands {
         var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
 
         List<Holder.Reference<Enchantment>> enchantments = registry.listElements()
-                .sorted(Comparator.comparing(h -> h.key().location().getPath()))
+                .sorted(Comparator.comparing(h -> h.key().identifier().getPath()))
                 .toList();
 
         if (enchantments.isEmpty()) {
@@ -211,7 +214,7 @@ public class LibrarianCommands {
 
         for (int i = start; i < end; i++) {
             Holder.Reference<Enchantment> holder = enchantments.get(i);
-            String path = holder.key().location().getPath();
+            String path = holder.key().identifier().getPath();
             Enchantment ench = holder.value();
             int maxLevel = ench.getMaxLevel();
             String desc = ench.description().getString();
