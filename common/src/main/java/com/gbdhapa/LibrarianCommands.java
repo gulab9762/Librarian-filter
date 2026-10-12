@@ -139,8 +139,20 @@ public class LibrarianCommands {
         villager.getBrain().setMemory(MemoryModuleType.JOB_SITE, GlobalPos.of(level.dimension(), lecternPos));
         level.addFreshEntity(villager);
 
-        source.sendSuccess(() -> Component.literal("\u00a7aSetup complete! Spawned a librarian in a glass booth with lectern and sign in front of you. Right-click the lectern to test rerolling!"), false);
+        // Give player 3 stacks of Emeralds and 3 stacks of Books
+        for (int i = 0; i < 3; i++) {
+            giveItem(player, new ItemStack(Items.EMERALD, 64));
+            giveItem(player, new ItemStack(Items.BOOK, 64));
+        }
+
+        source.sendSuccess(() -> Component.literal("\u00a7aSetup complete! Spawned a librarian in a glass booth and gave 3 stacks of emeralds and books. Right-click the lectern to test rerolling!"), false);
         return 1;
+    }
+
+    private static void giveItem(ServerPlayer player, ItemStack stack) {
+        if (!player.addItem(stack)) {
+            player.drop(stack, false);
+        }
     }
 
     private static int executeClear(CommandContext<CommandSourceStack> context) {
