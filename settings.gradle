@@ -12,6 +12,10 @@ pluginManagement {
 			name = 'NeoForge'
 			url = 'https://maven.neoforged.net/releases/'
 		}
+		maven {
+			name = 'Forge'
+			url = 'https://maven.minecraftforge.net/'
+		}
 		mavenCentral()
 		gradlePluginPortal()
 	}
@@ -22,4 +26,5 @@ rootProject.name = 'librarian-filter'
 include 'common'
 include 'fabric'
 include 'neoforge'
+include 'forge'
 // include 'quilt'
