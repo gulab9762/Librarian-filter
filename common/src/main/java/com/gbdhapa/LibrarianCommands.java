@@ -7,6 +7,9 @@ import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
@@ -18,13 +21,20 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LecternBlock;
+import net.minecraft.world.level.block.WallSignBlock;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.phys.AABB;
 
 import java.util.*;
@@ -36,9 +46,12 @@ public class LibrarianCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("reroll")
                 .executes(context -> {
-                    context.getSource().sendSuccess(() -> Component.literal("§a[Librarian Filter] Use §e/reroll list§a to view supported book formats, §e/reroll find <enchantment>§a to locate offering villagers, or §e/reroll clear§a to remove glow."), false);
+                    context.getSource().sendSuccess(() -> Component.literal("\u00a7a[Librarian Filter] Use \u00a7e/reroll list\u00a7a to view supported book formats, \u00a7e/reroll find <enchantment>\u00a7a to locate offering villagers, \u00a7e/reroll setup\u00a7a to spawn a test booth (creative only), or \u00a7e/reroll clear\u00a7a to remove glow."), false);
                     return 1;
                 })
+                .then(Commands.literal("setup")
+                        .executes(LibrarianCommands::executeSetup)
+                )
                 .then(Commands.literal("list")
                         .executes(context -> executeList(context, 1))
                         .then(Commands.argument("page", IntegerArgumentType.integer(1))
@@ -63,17 +76,84 @@ public class LibrarianCommands {
         );
     }
 
+    private static int executeSetup(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("\u00a7cThis command must be executed by a player."));
+            return 0;
+        }
+
+        if (!player.isCreative()) {
+            source.sendFailure(Component.literal("\u00a7cThis command can only be used in Creative mode."));
+            return 0;
+        }
+
+        ServerLevel level = source.getLevel();
+        BlockPos playerPos = player.blockPosition();
+        Direction facing = player.getDirection();
+        Direction opposite = facing.getOpposite();
+
+        BlockPos center = playerPos.relative(facing, 3); // 3 blocks in front of the player
+
+        // Build a small 3x3 interior glass room (5x5 outer)
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -1; dy <= 3; dy++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    BlockPos pos = center.offset(dx, dy, dz);
+                    if (dy == -1) {
+                        level.setBlock(pos, Blocks.STONE.defaultBlockState(), 3); // Floor
+                    } else if (dx == -2 || dx == 2 || dz == -2 || dz == 2 || dy == 3) {
+                        level.setBlock(pos, Blocks.GLASS.defaultBlockState(), 3); // Walls & Roof
+                    } else {
+                        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3); // Interior
+                    }
+                }
+            }
+        }
+
+        // Place Lectern inside the room, in front of the villager
+        BlockPos lecternPos = center.relative(opposite, 1);
+        level.setBlock(lecternPos, Blocks.LECTERN.defaultBlockState().setValue(LecternBlock.FACING, opposite), 3);
+
+        // Place Sign attached to the front of the Lectern (on the front wall facing player)
+        BlockPos signPos = lecternPos.relative(opposite, 1);
+        level.setBlock(signPos, Blocks.OAK_WALL_SIGN.defaultBlockState().setValue(WallSignBlock.FACING, opposite), 3);
+
+        // Clear the block directly above the sign so the player can reach and right-click the lectern directly
+        level.setBlock(signPos.above(), Blocks.AIR.defaultBlockState(), 3);
+
+        // Set default sign text "eff"
+        if (level.getBlockEntity(signPos) instanceof SignBlockEntity signEntity) {
+            signEntity.setText(signEntity.getFrontText().setMessage(0, Component.literal("eff")), true);
+            signEntity.setChanged();
+            level.sendBlockUpdated(signPos, signEntity.getBlockState(), signEntity.getBlockState(), 3);
+        }
+
+        // Spawn Villager at center
+        Villager villager = new Villager(EntityType.VILLAGER, level);
+        villager.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
+
+        var professionHolder = level.registryAccess().lookupOrThrow(Registries.VILLAGER_PROFESSION).getOrThrow(VillagerProfession.LIBRARIAN);
+        villager.setVillagerData(villager.getVillagerData().withProfession(professionHolder));
+        villager.getBrain().setMemory(MemoryModuleType.JOB_SITE, GlobalPos.of(level.dimension(), lecternPos));
+        level.addFreshEntity(villager);
+
+        source.sendSuccess(() -> Component.literal("\u00a7aSetup complete! Spawned a librarian in a glass booth with lectern and sign in front of you. Right-click the lectern to test rerolling!"), false);
+        return 1;
+    }
+
     private static int executeClear(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFailure(Component.literal("§cThis command must be executed by a player."));
+            source.sendFailure(Component.literal("\u00a7cThis command must be executed by a player."));
             return 0;
         }
 
         ServerLevel level = source.getLevel();
         int removed = clearPreviousGlow(level, player.getUUID());
-        source.sendSuccess(() -> Component.literal("§aRemoved glowing effect from " + removed + " previously highlighted villager(s)."), false);
+        source.sendSuccess(() -> Component.literal("\u00a7aRemoved glowing effect from " + removed + " previously highlighted villager(s)."), false);
         return removed;
     }
 
@@ -101,7 +181,7 @@ public class LibrarianCommands {
                 .toList();
 
         if (enchantments.isEmpty()) {
-            source.sendFailure(Component.literal("§cNo enchantments found in registry."));
+            source.sendFailure(Component.literal("\u00a7cNo enchantments found in registry."));
             return 0;
         }
 
@@ -109,10 +189,10 @@ public class LibrarianCommands {
         int totalPages = Math.max(1, (int) Math.ceil((double) enchantments.size() / pageSize));
         int page = Math.min(Math.max(1, requestedPage), totalPages);
 
-        source.sendSuccess(() -> Component.literal("§6========================================"), false);
-        source.sendSuccess(() -> Component.literal("§6   Librarian Books §e(Page " + page + "/" + totalPages + ")"), false);
-        source.sendSuccess(() -> Component.literal("§7   Write any of these keywords on a sign:"), false);
-        source.sendSuccess(() -> Component.literal("§6========================================"), false);
+        source.sendSuccess(() -> Component.literal("\u00a76========================================"), false);
+        source.sendSuccess(() -> Component.literal("\u00a76   Librarian Books \u00a7e(Page " + page + "/" + totalPages + ")"), false);
+        source.sendSuccess(() -> Component.literal("\u00a77   Write any of these keywords on a sign:"), false);
+        source.sendSuccess(() -> Component.literal("\u00a76========================================"), false);
 
         int start = (page - 1) * pageSize;
         int end = Math.min(start + pageSize, enchantments.size());
@@ -127,23 +207,23 @@ public class LibrarianCommands {
 
             String shortType = getSuggestedShortType(path);
 
-            MutableComponent entry = Component.literal(" §e• Type: §f\"" + shortType + "\" §7(or \"" + path + "\") §8-> ")
-                    .append(Component.literal("§a" + desc + " " + maxLevel))
-                    .append(Component.literal(" §6[" + lowestCost + " Emeralds]"));
+            MutableComponent entry = Component.literal(" \u00a7e* Type: \u00a7f\"" + shortType + "\" \u00a77(or \"" + path + "\") \u00a78-> ")
+                    .append(Component.literal("\u00a7a" + desc + " " + maxLevel))
+                    .append(Component.literal(" \u00a76[" + lowestCost + " Emeralds]"));
 
             source.sendSuccess(() -> entry, false);
         }
 
         // Navigation controls
-        MutableComponent nav = Component.literal("§6----------------------------------------\n ");
+        MutableComponent nav = Component.literal("\u00a76----------------------------------------\n ");
         if (page > 1) {
-            MutableComponent prevBtn = Component.literal("§e[<< Prev] ")
+            MutableComponent prevBtn = Component.literal("\u00a7e[<< Prev] ")
                     .withStyle(style -> style.withClickEvent(new ClickEvent.RunCommand("/reroll list " + (page - 1))));
             nav.append(prevBtn);
         }
-        nav.append(Component.literal("§7Page " + page + " of " + totalPages + " "));
+        nav.append(Component.literal("\u00a77Page " + page + " of " + totalPages + " "));
         if (page < totalPages) {
-            MutableComponent nextBtn = Component.literal("§e[Next >>]")
+            MutableComponent nextBtn = Component.literal("\u00a7e[Next >>]")
                     .withStyle(style -> style.withClickEvent(new ClickEvent.RunCommand("/reroll list " + (page + 1))));
             nav.append(nextBtn);
         }
@@ -156,7 +236,7 @@ public class LibrarianCommands {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFailure(Component.literal("§cThis command must be executed by a player."));
+            source.sendFailure(Component.literal("\u00a7cThis command must be executed by a player."));
             return 0;
         }
 
@@ -170,7 +250,7 @@ public class LibrarianCommands {
         var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         Holder.Reference<Enchantment> matchedEnchantment = LibrarianCore.findEnchantmentHolder(registry.listElements().toList(), query);
         if (matchedEnchantment == null) {
-            source.sendFailure(Component.literal("§cNo enchantment found matching: \"" + query + "\""));
+            source.sendFailure(Component.literal("\u00a7cNo enchantment found matching: \"" + query + "\""));
             return 0;
         }
 
@@ -211,9 +291,9 @@ public class LibrarianCommands {
         if (!newlyFoundVillagers.isEmpty()) {
             GLOWING_VILLAGERS_BY_PLAYER.put(playerUuid, newlyFoundVillagers);
             final int finalCount = count;
-            source.sendSuccess(() -> Component.literal("§aFound " + finalCount + " librarian(s) offering " + enchantName + "! Previous glow cleared; new ones glowing for 30s."), false);
+            source.sendSuccess(() -> Component.literal("\u00a7aFound " + finalCount + " librarian(s) offering " + enchantName + "! Previous glow cleared; new ones glowing for 30s."), false);
         } else {
-            source.sendFailure(Component.literal("§cNo nearby librarians found offering " + enchantName + " (searched 96-block radius)."));
+            source.sendFailure(Component.literal("\u00a7cNo nearby librarians found offering " + enchantName + " (searched 96-block radius)."));
         }
 
         return count;
