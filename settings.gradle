@@ -5,14 +5,6 @@ pluginManagement {
 			url = 'https://maven.fabricmc.net/'
 		}
 		maven {
-			name = 'Quilt'
-			url = 'https://maven.quiltmc.org/repository/release/'
-		}
-		maven {
-			name = 'NeoForge'
-			url = 'https://maven.neoforged.net/releases/'
-		}
-		maven {
 			name = 'Forge'
 			url = 'https://maven.minecraftforge.net/'
 		}
@@ -25,5 +17,4 @@ rootProject.name = 'librarian-filter'
 
 include 'common'
 include 'fabric'
-include 'neoforge'
 include 'forge'

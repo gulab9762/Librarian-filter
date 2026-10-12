@@ -21,6 +21,6 @@ A mod that allows you to reroll villager trades easily using signs.
 [[dependencies.librarian_filter]]
     modId="minecraft"
     mandatory=true
-    versionRange="[1.21.1,)"
+    versionRange="[1.20.1,)"
     ordering="NONE"
     side="BOTH"

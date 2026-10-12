@@ -5,13 +5,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
@@ -23,7 +22,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
-import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.Level;
@@ -109,7 +107,7 @@ public class LibrarianCore {
             return LOWEST_PRICES_FOR_MAX_LEVEL.get(path);
         }
 
-        boolean isDoublePrice = holder.is(EnchantmentTags.DOUBLE_TRADE_PRICE);
+        boolean isDoublePrice = holder.value().isTreasureOnly();
         int cost = 2 + 3 * level;
         if (isDoublePrice) {
             cost *= 2;
@@ -265,8 +263,7 @@ public class LibrarianCore {
     }
 
     public static MatchResult findMatchingEnchantment(ServerLevel serverLevel, List<String> signLines) {
-        var registry = serverLevel.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-        List<Holder.Reference<Enchantment>> allEnchantments = registry.listElements().toList();
+        List<Holder.Reference<Enchantment>> allEnchantments = BuiltInRegistries.ENCHANTMENT.holders().toList();
 
         for (String rawLine : signLines) {
             String cleaned = rawLine.trim();
@@ -329,7 +326,7 @@ public class LibrarianCore {
             ResourceLocation id = holder.key().location();
             String path = id.getPath().toLowerCase(Locale.ROOT);
             String fullId = id.toString().toLowerCase(Locale.ROOT);
-            String desc = holder.value().description().getString().toLowerCase(Locale.ROOT);
+            String desc = Component.translatable(holder.value().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
 
             String pathClean = path.replaceAll("[^a-z0-9]", "");
             String pathSpaced = path.replace("_", " ");
@@ -371,7 +368,7 @@ public class LibrarianCore {
             offers = new MerchantOffers();
         }
 
-        ItemStack bookStack = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(holder, level));
+        ItemStack bookStack = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(holder.value(), level));
         int emeraldCost = getLowestPrice(holder, level);
 
         int targetIndex = -1;
@@ -390,8 +387,8 @@ public class LibrarianCore {
         }
 
         MerchantOffer newOffer = new MerchantOffer(
-                new ItemCost(Items.EMERALD, emeraldCost),
-                Optional.of(new ItemCost(Items.BOOK)),
+                new ItemStack(Items.EMERALD, emeraldCost),
+                new ItemStack(Items.BOOK),
                 bookStack,
                 12,
                 1,
@@ -414,7 +411,7 @@ public class LibrarianCore {
         serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX(), villager.getY() + 1.0, villager.getZ(), 15, 0.5, 0.5, 0.5, 0.02);
         serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
 
-        String enchName = match.holder().value().description().getString();
+        String enchName = Component.translatable(match.holder().value().getDescriptionId()).getString();
         int lowestCost = getLowestPrice(match.holder(), match.level());
         player.displayClientMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"), false);
     }

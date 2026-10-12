@@ -11,8 +11,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -29,7 +29,7 @@ import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LecternBlock;
@@ -64,9 +64,8 @@ public class LibrarianCommands {
                 .then(Commands.literal("find")
                         .then(Commands.argument("enchantment", StringArgumentType.greedyString())
                                 .suggests((context, builder) -> {
-                                    var registry = context.getSource().getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
                                     return SharedSuggestionProvider.suggest(
-                                            registry.listElements().map(h -> h.key().location().getPath()),
+                                            BuiltInRegistries.ENCHANTMENT.keySet().stream().map(ResourceLocation::getPath),
                                             builder
                                     );
                                 })
@@ -191,9 +190,7 @@ public class LibrarianCommands {
 
     private static int executeList(CommandContext<CommandSourceStack> context, int requestedPage) {
         CommandSourceStack source = context.getSource();
-        var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-
-        List<Holder.Reference<Enchantment>> enchantments = registry.listElements()
+        List<Holder.Reference<Enchantment>> enchantments = BuiltInRegistries.ENCHANTMENT.holders()
                 .sorted(Comparator.comparing(h -> h.key().location().getPath()))
                 .toList();
 
@@ -219,7 +216,7 @@ public class LibrarianCommands {
             String path = holder.key().location().getPath();
             Enchantment ench = holder.value();
             int maxLevel = ench.getMaxLevel();
-            String desc = ench.description().getString();
+            String desc = Component.translatable(ench.getDescriptionId()).getString();
             int lowestCost = LibrarianCore.getLowestPrice(holder, maxLevel);
 
             String shortType = getSuggestedShortType(path);
@@ -264,14 +261,13 @@ public class LibrarianCommands {
         clearPreviousGlow(level, playerUuid);
 
         // 2. Find matching enchantment
-        var registry = source.getServer().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-        Holder.Reference<Enchantment> matchedEnchantment = LibrarianCore.findEnchantmentHolder(registry.listElements().toList(), query);
+        Holder.Reference<Enchantment> matchedEnchantment = LibrarianCore.findEnchantmentHolder(BuiltInRegistries.ENCHANTMENT.holders().toList(), query);
         if (matchedEnchantment == null) {
             source.sendFailure(Component.literal("\u00a7cNo enchantment found matching: \"" + query + "\""));
             return 0;
         }
 
-        String enchantName = matchedEnchantment.value().description().getString();
+        String enchantName = Component.translatable(matchedEnchantment.value().getDescriptionId()).getString();
         AABB searchBox = player.getBoundingBox().inflate(96.0);
         List<Villager> nearbyVillagers = level.getEntitiesOfClass(Villager.class, searchBox);
 
@@ -282,11 +278,10 @@ public class LibrarianCommands {
             for (MerchantOffer offer : villager.getOffers()) {
                 ItemStack result = offer.getResult();
                 if (result.is(Items.ENCHANTED_BOOK)) {
-                    ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
+                    Map<Enchantment, Integer> stored = EnchantmentHelper.getEnchantments(result);
                     if (stored != null) {
-                        for (Holder<Enchantment> enchHolder : stored.keySet()) {
-                            if (enchHolder.equals(matchedEnchantment) ||
-                                    enchHolder.unwrapKey().equals(matchedEnchantment.unwrapKey())) {
+                        for (Enchantment ench : stored.keySet()) {
+                            if (ench.equals(matchedEnchantment.value())) {
                                 offersTargetBook = true;
                                 break;
                             }
