@@ -415,7 +415,7 @@ public class LibrarianCore {
 
         String enchName = match.holder().value().description().getString();
         int lowestCost = getLowestPrice(match.holder(), match.level());
-        player.sendSystemMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"));
+        player.displayClientMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"), false);
     }
 
     private static void sendFailure(ServerLevel serverLevel, Player player, Villager villager, BlockPos fallbackPos, String reason) {
@@ -427,6 +427,6 @@ public class LibrarianCore {
             serverLevel.playSound(null, fallbackPos.getX() + 0.5, fallbackPos.getY() + 1.0, fallbackPos.getZ() + 0.5, SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 1.0F, 1.0F);
         }
 
-        player.sendSystemMessage(Component.literal("§c[Librarian Filter] " + reason));
+        player.displayClientMessage(Component.literal("§c[Librarian Filter] " + reason), false);
     }
 }
