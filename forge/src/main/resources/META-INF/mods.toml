@@ -2,9 +2,6 @@ modLoader="javafml"
 loaderVersion="[1,)"
 license="All Rights Reserved"
 
-[[mixins]]
-config="librarian-filter.mixins.json"
-
 [[mods]]
 modId="librarian_filter"
 version="${version}"
