@@ -666,6 +666,37 @@ public class LibrarianCore {
             }
         }
 
+        // 4b. Check Suspicious Stew effects (stored in NBT as 'Effects' with EffectId byte/int)
+        if (stack.is(Items.SUSPICIOUS_STEW) && stack.hasTag()) {
+            CompoundTag stewTag = stack.getTag();
+            if (stewTag != null && stewTag.contains("Effects", Tag.TAG_LIST)) {
+                net.minecraft.nbt.ListTag effectsList = stewTag.getList("Effects", Tag.TAG_COMPOUND);
+                for (int i = 0; i < effectsList.size(); i++) {
+                    CompoundTag effTag = effectsList.getCompound(i);
+                    int effectIdNum = 0;
+                    if (effTag.contains("EffectId", Tag.TAG_INT)) {
+                        effectIdNum = effTag.getInt("EffectId");
+                    } else if (effTag.contains("EffectId", Tag.TAG_BYTE)) {
+                        effectIdNum = effTag.getByte("EffectId") & 0xFF;
+                    }
+                    net.minecraft.world.effect.MobEffect effect = net.minecraft.world.effect.MobEffect.byId(effectIdNum);
+                    if (effect != null) {
+                        ResourceLocation effLoc = BuiltInRegistries.MOB_EFFECT.getKey(effect);
+                        if (effLoc != null) {
+                            String effPath = effLoc.getPath().toLowerCase(Locale.ROOT);
+                            if (effPath.startsWith(q) || effPath.contains(q) || effPath.replace("_", " ").startsWith(qSpaced)) {
+                                return true;
+                            }
+                        }
+                        String effName = Component.translatable(effect.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
+                        if (effName.startsWith(q) || effName.contains(q)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
         // 5. Check Enchantments on item (tools, armor, books)
         Map<Enchantment, Integer> enchants = EnchantmentHelper.getEnchantments(stack);
         for (Enchantment ench : enchants.keySet()) {
