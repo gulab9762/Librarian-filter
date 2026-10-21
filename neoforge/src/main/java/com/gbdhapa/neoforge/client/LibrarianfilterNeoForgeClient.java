@@ -3,7 +3,6 @@ package com.gbdhapa.neoforge.client;
 import com.gbdhapa.network.ConfigRequestPayload;
 import com.gbdhapa.network.OpenConfigScreenPayload;
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.neoforged.bus.api.IEventBus;
@@ -11,14 +10,12 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 public class LibrarianfilterNeoForgeClient {
     public static KeyMapping OPEN_CONFIG_KEY;
 
     public static void init(IEventBus modEventBus) {
         modEventBus.addListener(LibrarianfilterNeoForgeClient::registerKeyMappings);
-        modEventBus.addListener(LibrarianfilterNeoForgeClient::registerClientPayloads);
         NeoForge.EVENT_BUS.addListener(LibrarianfilterNeoForgeClient::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(LibrarianfilterNeoForgeClient::onClientLogin);
     }
@@ -53,12 +50,14 @@ public class LibrarianfilterNeoForgeClient {
         event.register(OPEN_CONFIG_KEY);
     }
 
-    public static void registerClientPayloads(RegisterPayloadHandlersEvent event) {
-        event.registrar("1.0.1").playToClient(OpenConfigScreenPayload.ID, OpenConfigScreenPayload.CODEC, (payload, context) -> {
-            context.enqueueWork(() -> {
-                Minecraft.getInstance().setScreen(new NeoForgeTradeConfigScreen(payload.enableReroll(), payload.enableEachLevelReroll(), payload.disableTradeRebalance(), payload.enableSignSuggestions(), payload.allowTreasureEnchantments()));
-            });
-        });
+    public static void openConfigScreen(OpenConfigScreenPayload payload) {
+        Minecraft.getInstance().setScreen(new NeoForgeTradeConfigScreen(
+                payload.enableReroll(),
+                payload.enableEachLevelReroll(),
+                payload.disableTradeRebalance(),
+                payload.enableSignSuggestions(),
+                payload.allowTreasureEnchantments()
+        ));
     }
 
     private static void onPlayerTick(PlayerTickEvent.Post event) {

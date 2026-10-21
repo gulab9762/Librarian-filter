@@ -34,11 +34,23 @@ public class LibrarianfilterNeoForge {
 
         modEventBus.addListener(this::registerPayloads);
 
-        LibrarianfilterNeoForgeClient.init(modEventBus);
+        if (FMLLoader.getDist().isClient()) {
+            LibrarianfilterNeoForgeClient.init(modEventBus);
+        }
     }
 
     private void registerPayloads(RegisterPayloadHandlersEvent event) {
         final PayloadRegistrar registrar = event.registrar("1.0.1");
+
+        if (FMLLoader.getDist().isClient()) {
+            registrar.playToClient(OpenConfigScreenPayload.ID, OpenConfigScreenPayload.CODEC, (payload, context) -> {
+                context.enqueueWork(() -> {
+                    LibrarianfilterNeoForgeClient.openConfigScreen(payload);
+                });
+            });
+        } else {
+            registrar.playToClient(OpenConfigScreenPayload.ID, OpenConfigScreenPayload.CODEC, (payload, context) -> {});
+        }
 
         registrar.playToClient(TradeConfigSyncPayload.ID, TradeConfigSyncPayload.CODEC, (payload, context) -> {
             TradeConfig.INSTANCE.enableReroll = payload.enableReroll();
