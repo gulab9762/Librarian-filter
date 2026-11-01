@@ -1,7 +1,14 @@
-# ⚡ Instant Villager Trade Reroller (Librarian Filter)
+# ⚡ Instant Villager Trade Reroller (Librarian Filter) - QOL Mod
+
+<div align="center">
+
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/bWWwkFryuA)
+[![Download](https://img.shields.io/badge/Download-Latest%20JAR-00AF5C?logo=modrinth&logoColor=white)](https://modrinth.com/mod/easylibrariantrade/versions)
 
 > **Say goodbye to breaking and replacing lecterns 500 times!**  
 > Instant, hassle-free villager trade rerolling using simple signs on workstations. Filter enchantments, items, and levels in seconds.
+
+</div>
 
 ---
 
@@ -15,6 +22,7 @@ Tired of the endless loop of placing a lectern, checking for **Mending**, breaki
 * 🏷️ **Sign-Based Filtering** — Write what you want directly on the workstation.
 * 🎯 **Smart Shorthand** — Type abbreviations (`eff`, `prot`, `unbr`) or full names (`white_wool`).
 * 🔝 **Automatic Max Level** — Omitting the level automatically targets the maximum enchantment level!
+* 🔓 **Allows reroll at any level** — Allows locked villager trade on next level!
 * ✨ **Visual Feedback** — Happy green villager particles on success, angry clouds on failure, plus villager glowing so you know who claimed it!
 * 🧩 **Universal Multi-Loader** — Runs seamlessly on **Fabric**, **NeoForge**, **Forge**, and **Quilt**!
 
@@ -75,16 +83,16 @@ For normal item trades, type the item registry name. Use underscores `_` for spa
 ## 🛠️ Helpful Commands
 
 * `/reroll setup` / `/reroll setup creative` — *(Creative / Testing)* Spawns a ready-to-test glass trading booth with a Librarian, Lectern, Sign, plus 3 stacks of emeralds & books!
-* `/reroll clear` — Clears glowing effects and active highlights from villagers.
-* `/reroll ai <question>` — Ask the optional built-in local LLM debugging assistant if a trade isn't rolling or you forgot a keyword!
+* `/reroll find <book name>` — Highlights and gives a glowing outline to nearby villagers offering that enchantment book.
+* `/reroll clear` — Clears glowing outlines from highlighted villagers.
 
 ---
 
 ## 🐛 Need Help or Found a Bug?
 
-* 📖 **Wiki & Docs**: [GitHub Wiki](https://github.com/gulab9762/Librarian-filter/wiki)
 * 💬 **Discord Community**: [Join our Discord Server](https://discord.gg/bWWwkFryuA)
-* 🐞 **Issue Tracker**: Report bugs on GitHub Issues
+* 📖 **Wiki & Docs**: [GitHub Wiki](https://github.com/gulab9762/Librarian-filter/wiki)
+* 🐞 **Issue Tracker**: [Report bugs on GitHub](https://github.com/gulab9762/Librarian-filter/issues)
 
 ---
 
