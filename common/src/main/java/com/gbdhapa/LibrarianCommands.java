@@ -143,7 +143,7 @@ public class LibrarianCommands {
             giveItem(player, new ItemStack(Items.BOOK, 64));
         }
 
-        source.sendSuccess(() -> Component.literal("\u00a7aSetup complete! Spawned an enclosed, immobile villager facing workstation with sign [\"" + query + "\"]. Right-click workstation to reroll trade!"), false);
+        source.sendSuccess(() -> Component.literal("\u00a7aSetup complete! Spawned an enclosed villager facing workstation with sign [\"" + query + "\"]. Right-click workstation to reroll trade!"), false);
         return 1;
     }
 
@@ -215,12 +215,11 @@ public class LibrarianCommands {
             level.sendBlockUpdated(signPos, signEntity.getBlockState(), signEntity.getBlockState(), 3);
         }
 
-        // 7. Spawn enclosed Villager with NoAI so he cannot move
+        // 7. Spawn enclosed Villager with normal AI (contained by glass booth)
         Villager villager = new Villager(EntityTypes.VILLAGER, level);
         villager.setPos(villagerPos.getX() + 0.5, villagerPos.getY(), villagerPos.getZ() + 0.5);
         villager.setYRot(opposite.toYRot());
         villager.setYHeadRot(opposite.toYRot());
-        villager.setNoAi(true);
 
         var professionHolder = level.registryAccess().lookupOrThrow(Registries.VILLAGER_PROFESSION).getOrThrow(profKey);
         villager.setVillagerData(villager.getVillagerData().withProfession(professionHolder));
