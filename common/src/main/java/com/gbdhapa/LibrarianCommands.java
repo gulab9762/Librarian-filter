@@ -269,7 +269,7 @@ public class LibrarianCommands {
             boolean offersTargetBook = false;
             for (MerchantOffer offer : villager.getOffers()) {
                 ItemStack result = offer.getResult();
-                if (result.is(Items.ENCHANTED_BOOK)) {
+                if (result.getItem() == Items.ENCHANTED_BOOK) {
                     Map<Enchantment, Integer> map = EnchantmentHelper.getEnchantments(result);
                     if (map.containsKey(matchedEnchantment)) {
                         offersTargetBook = true;

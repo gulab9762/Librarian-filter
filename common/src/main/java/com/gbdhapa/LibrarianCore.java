@@ -221,7 +221,7 @@ public class LibrarianCore {
     public static List<String> getSignLines(SignBlockEntity signEntity) {
         List<String> lines = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
-            Component c = signEntity.getMessage(i, false);
+            Component c = signEntity.getMessage(i);
             if (c != null) {
                 String s = c.getString().trim();
                 if (!s.isEmpty()) {
@@ -377,7 +377,7 @@ public class LibrarianCore {
             int size = offers.size();
             int startIndex = Math.max(0, size - 2);
             for (int i = startIndex; i < size; i++) {
-                if (offers.get(i).getResult().is(Items.ENCHANTED_BOOK)) {
+                if (offers.get(i).getResult().getItem() == Items.ENCHANTED_BOOK) {
                     targetIndex = i;
                     break;
                 }
