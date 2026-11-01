@@ -5,7 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -272,18 +272,10 @@ public class LibrarianCore {
 
     public static List<String> getSignLines(SignBlockEntity signEntity) {
         List<String> lines = new ArrayList<>();
-        for (Component c : signEntity.getFrontText().getMessages(false)) {
-            String s = c.getString().trim();
+        for (int i = 0; i < 4; i++) {
+            String s = signEntity.getMessage(i, false).getString().trim();
             if (!s.isEmpty()) {
                 lines.add(s);
-            }
-        }
-        if (lines.isEmpty()) {
-            for (Component c : signEntity.getBackText().getMessages(false)) {
-                String s = c.getString().trim();
-                if (!s.isEmpty()) {
-                    lines.add(s);
-                }
             }
         }
         return lines;
@@ -328,7 +320,7 @@ public class LibrarianCore {
     }
 
     public static MatchResult findMatchingEnchantment(ServerLevel serverLevel, List<String> signLines) {
-        List<Holder.Reference<Enchantment>> allEnchantments = BuiltInRegistries.ENCHANTMENT.holders().toList();
+        List<Holder.Reference<Enchantment>> allEnchantments = Registry.ENCHANTMENT.holders().toList();
 
         for (String rawLine : signLines) {
             String cleaned = rawLine.trim();
@@ -586,7 +578,7 @@ public class LibrarianCore {
         }
 
         // 2. Check item registry path (e.g. "potato", "tipped_arrow", "bread")
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        ResourceLocation itemId = Registry.ITEM.getKey(stack.getItem());
         if (itemId != null) {
             String path = itemId.getPath().toLowerCase(Locale.ROOT);
             String fullId = itemId.toString().toLowerCase(Locale.ROOT);
@@ -609,7 +601,7 @@ public class LibrarianCore {
         // 4. Check Potion & Mob Effects (crucial for Tipped Arrows, Potions)
         Potion potion = PotionUtils.getPotion(stack);
         if (potion != null && potion != Potions.EMPTY) {
-            ResourceLocation potionId = BuiltInRegistries.POTION.getKey(potion);
+            ResourceLocation potionId = Registry.POTION.getKey(potion);
             if (potionId != null) {
                 String potionPath = potionId.getPath().toLowerCase(Locale.ROOT);
                 if (potionPath.startsWith(q) || potionPath.contains(q) || potionId.toString().startsWith(q)) {
@@ -622,7 +614,7 @@ public class LibrarianCore {
             }
 
             for (MobEffectInstance effectInstance : potion.getEffects()) {
-                ResourceLocation effectId = BuiltInRegistries.MOB_EFFECT.getKey(effectInstance.getEffect());
+                ResourceLocation effectId = Registry.MOB_EFFECT.getKey(effectInstance.getEffect());
                 if (effectId != null) {
                     String effectPath = effectId.getPath().toLowerCase(Locale.ROOT);
                     if (effectPath.startsWith(q) || effectPath.contains(q)) {
@@ -637,7 +629,7 @@ public class LibrarianCore {
         }
 
         for (MobEffectInstance effectInstance : PotionUtils.getCustomEffects(stack)) {
-            ResourceLocation effectId = BuiltInRegistries.MOB_EFFECT.getKey(effectInstance.getEffect());
+            ResourceLocation effectId = Registry.MOB_EFFECT.getKey(effectInstance.getEffect());
             if (effectId != null) {
                 String effectPath = effectId.getPath().toLowerCase(Locale.ROOT);
                 if (effectPath.startsWith(q) || effectPath.contains(q)) {
@@ -665,7 +657,7 @@ public class LibrarianCore {
                     }
                     net.minecraft.world.effect.MobEffect effect = net.minecraft.world.effect.MobEffect.byId(effectIdNum);
                     if (effect != null) {
-                        ResourceLocation effLoc = BuiltInRegistries.MOB_EFFECT.getKey(effect);
+                        ResourceLocation effLoc = Registry.MOB_EFFECT.getKey(effect);
                         if (effLoc != null) {
                             String effPath = effLoc.getPath().toLowerCase(Locale.ROOT);
                             if (effPath.startsWith(q) || effPath.contains(q) || effPath.replace("_", " ").startsWith(qSpaced)) {
@@ -684,7 +676,7 @@ public class LibrarianCore {
         // 5. Check Enchantments on item (tools, armor, books)
         Map<Enchantment, Integer> enchants = EnchantmentHelper.getEnchantments(stack);
         for (Enchantment ench : enchants.keySet()) {
-            ResourceLocation enchId = BuiltInRegistries.ENCHANTMENT.getKey(ench);
+            ResourceLocation enchId = Registry.ENCHANTMENT.getKey(ench);
             if (enchId != null) {
                 String enchPath = enchId.getPath().toLowerCase(Locale.ROOT);
                 if (enchPath.startsWith(q) || enchPath.replace("_", " ").startsWith(qSpaced) || enchPath.contains(q)) {
