@@ -1,7 +1,6 @@
 plugins {
+	id 'base'
 	id 'fabric-loom' version "${loom_version}" apply false
-	id 'net.neoforged.moddev' version '2.0.141' apply false
-	id 'net.minecraftforge.gradle' version '7.0.40' apply false
 }
 
 allprojects {
@@ -10,3 +9,26 @@ allprojects {
 	version = project.mod_version
 	group = project.maven_group
 }
+
+tasks.register('collectAllJars', Copy) {
+	group = 'build'
+	description = 'Collects loader jars into build/libs'
+
+	if (findProject(':fabric') != null) {
+		from(project(':fabric').tasks.findByName('remapJar') != null ? 
+			project(':fabric').tasks.named('remapJar') : project(':fabric').tasks.named('jar'))
+	}
+	into layout.buildDirectory.dir("libs")
+}
+
+assemble.dependsOn('collectAllJars')
+
+tasks.register('copyToDownloads', Copy) {
+	group = 'distribution'
+	description = 'Copies all generated jars to Downloads folder'
+	dependsOn 'collectAllJars'
+	from layout.buildDirectory.dir("libs")
+	into "C:/Users/Gulab/Downloads"
+}
+
+assemble.finalizedBy('copyToDownloads')
