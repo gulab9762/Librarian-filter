@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] 取引を更新しました: %s %s (%s エメラルド - 最安値)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] 取引を更新しました: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] 一致するアイテムまたは取引が見つかりません: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] 一致するエンチャントまたは取引が見つかりません: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s はエンチャント本を提供できません。職業ブロックは書見台である必要があります。",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] %s にはこのアイテムの取引がありません: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] 村人は現在のレベルですでに取引されています。",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] この職業ブロックを持つ村人が見つかりません。",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] 村人の取引の更新に失敗しました。",
+  "text.librarian_filter.player_only": "§cこのコマンドはプレイヤーのみが実行できます。",
+  "text.librarian_filter.creative_only": "§cこのコマンドはクリエイティブモードでのみ使用できます。",
+  "text.librarian_filter.setup_complete": "§aセットアップ完了！看板 [\"%s\"] を持った隔離村人をスポーンしました。職業ブロックを右クリックして再ロール！",
+  "text.librarian_filter.help": "§a[Librarian Filter] §e/reroll setup§a でブースを生成、§e/reroll list§a で本を表示、または §e/reroll find <エンチャント>§a で村人を検索できます。"
+}

@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] Торговля обновлена на: %s %s (%s изумрудов - мин. цена)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] Торговля обновлена на: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] Не найдено предметов или торговли для: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] Не найдено зачарований или торговли для: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s не может предлагать книги чар. Рабочим местом должна быть кафедра.",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] У %s нет торговли для предмета: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] С жителем уже торговали на текущем уровне.",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] Житель с данным рабочим местом не найден.",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] Не удалось обновить торговлю жителя.",
+  "text.librarian_filter.player_only": "§cЭту команду может использовать только игрок.",
+  "text.librarian_filter.creative_only": "§cЭту команду можно использовать только в творческом режиме.",
+  "text.librarian_filter.setup_complete": "§aУстановка завершена! Житель заперт перед рабочим местом с табличкой [\"%s\"]. Кликните ПКМ по рабочему месту для реролла!",
+  "text.librarian_filter.help": "§a[Librarian Filter] Используйте §e/reroll setup§a для спавна кабинки, §e/reroll list§a для списка книг или §e/reroll find <чары>§a для поиска жителей."
+}

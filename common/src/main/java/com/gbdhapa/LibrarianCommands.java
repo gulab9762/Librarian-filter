@@ -52,7 +52,7 @@ public class LibrarianCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("reroll")
                 .executes(context -> {
-                    context.getSource().sendSuccess(() -> Component.literal("\u00a7a[Librarian Filter] Use \u00a7e/reroll setup\u00a7a to spawn a trapped villager booth, \u00a7e/reroll list\u00a7a for books, or \u00a7e/reroll find <enchantment>\u00a7a to locate villagers."), false);
+                    context.getSource().sendSuccess(() -> Component.translatable("text.librarian_filter.help"), false);
                     return 1;
                 })
                 .then(Commands.literal("setup")
@@ -90,45 +90,86 @@ public class LibrarianCommands {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFailure(Component.literal("\u00a7cThis command must be executed by a player."));
+            source.sendFailure(Component.translatable("text.librarian_filter.player_only"));
             return 0;
         }
 
         if (!player.isCreative()) {
-            source.sendFailure(Component.literal("\u00a7cThis command can only be used in Creative mode."));
+            source.sendFailure(Component.translatable("text.librarian_filter.creative_only"));
             return 0;
         }
 
         Block workstationBlock = Blocks.LECTERN;
         ResourceKey<VillagerProfession> profKey = VillagerProfession.LIBRARIAN;
 
-        Item targetItem = LibrarianCore.findItem(source.getLevel(), query);
-        if (targetItem != null) {
-            String path = targetItem.builtInRegistryHolder().key().identifier().getPath();
-            if (path.contains("wool") || path.contains("shear") || path.contains("carpet") || path.contains("dye")) {
-                workstationBlock = Blocks.LOOM;
-                profKey = VillagerProfession.SHEPHERD;
-            } else if (path.contains("bread") || path.contains("wheat") || path.contains("carrot") || path.contains("potato") || path.contains("beetroot") || path.contains("melon") || path.contains("pumpkin") || path.contains("apple") || path.contains("cookie")) {
-                workstationBlock = Blocks.COMPOSTER;
-                profKey = VillagerProfession.FARMER;
-            } else if (path.contains("pickaxe") || path.contains("shovel") || path.contains("hoe")) {
-                workstationBlock = Blocks.SMITHING_TABLE;
-                profKey = VillagerProfession.TOOLSMITH;
-            } else if (path.contains("sword")) {
-                workstationBlock = Blocks.GRINDSTONE;
-                profKey = VillagerProfession.WEAPONSMITH;
-            } else if (path.contains("helmet") || path.contains("chestplate") || path.contains("leggings") || path.contains("boots") || path.contains("shield")) {
-                workstationBlock = Blocks.BLAST_FURNACE;
-                profKey = VillagerProfession.ARMORER;
-            } else if (path.contains("fish") || path.contains("salmon") || path.contains("cod") || path.contains("boat")) {
-                workstationBlock = Blocks.BARREL;
-                profKey = VillagerProfession.FISHERMAN;
-            } else if (path.contains("beef") || path.contains("pork") || path.contains("chicken") || path.contains("mutton") || path.contains("rabbit")) {
-                workstationBlock = Blocks.SMOKER;
-                profKey = VillagerProfession.BUTCHER;
-            } else if (path.contains("arrow") || path.contains("bow") || path.contains("crossbow") || path.contains("flint")) {
-                workstationBlock = Blocks.FLETCHING_TABLE;
-                profKey = VillagerProfession.FLETCHER;
+        String canonical = LibrarianCore.canonicalizeQuery(query).toLowerCase(Locale.ROOT);
+        String qLower = query.toLowerCase(Locale.ROOT);
+
+        if (canonical.contains("arrow") || canonical.contains("weak") || canonical.contains("slow") || canonical.contains("poison") || canonical.contains("harm") || canonical.contains("heal") || canonical.contains("bow") || canonical.contains("crossbow") || canonical.contains("flint") || qLower.contains("arrow") || qLower.contains("weak") || qLower.contains("bow")) {
+            workstationBlock = Blocks.FLETCHING_TABLE;
+            profKey = VillagerProfession.FLETCHER;
+        } else if (canonical.contains("stew") || canonical.contains("saturat") || canonical.contains("blind") || canonical.contains("night_vis") || canonical.contains("bread") || canonical.contains("wheat") || canonical.contains("carrot") || canonical.contains("potato") || canonical.contains("beetroot") || canonical.contains("melon") || canonical.contains("pumpkin") || canonical.contains("apple") || canonical.contains("cookie") || qLower.contains("saturat")) {
+            workstationBlock = Blocks.COMPOSTER;
+            profKey = VillagerProfession.FARMER;
+        } else if (canonical.contains("wool") || canonical.contains("shear") || canonical.contains("carpet") || canonical.contains("dye") || qLower.contains("wool") || qLower.contains("dye")) {
+            workstationBlock = Blocks.LOOM;
+            profKey = VillagerProfession.SHEPHERD;
+        } else if (canonical.contains("pickaxe") || canonical.contains("shovel") || canonical.contains("hoe")) {
+            workstationBlock = Blocks.SMITHING_TABLE;
+            profKey = VillagerProfession.TOOLSMITH;
+        } else if (canonical.contains("sword")) {
+            workstationBlock = Blocks.GRINDSTONE;
+            profKey = VillagerProfession.WEAPONSMITH;
+        } else if (canonical.contains("helmet") || canonical.contains("chestplate") || canonical.contains("leggings") || canonical.contains("boots") || canonical.contains("shield")) {
+            workstationBlock = Blocks.BLAST_FURNACE;
+            profKey = VillagerProfession.ARMORER;
+        } else if (canonical.contains("fish") || canonical.contains("salmon") || canonical.contains("cod") || canonical.contains("boat")) {
+            workstationBlock = Blocks.BARREL;
+            profKey = VillagerProfession.FISHERMAN;
+        } else if (canonical.contains("beef") || canonical.contains("pork") || canonical.contains("chicken") || canonical.contains("mutton") || canonical.contains("rabbit")) {
+            workstationBlock = Blocks.SMOKER;
+            profKey = VillagerProfession.BUTCHER;
+        } else if (canonical.contains("potion") || canonical.contains("ender_pearl") || canonical.contains("redstone") || canonical.contains("lapis") || canonical.contains("glowstone")) {
+            workstationBlock = Blocks.BREWING_STAND;
+            profKey = VillagerProfession.CLERIC;
+        } else if (canonical.contains("map") || canonical.contains("compass") || canonical.contains("banner")) {
+            workstationBlock = Blocks.CARTOGRAPHY_TABLE;
+            profKey = VillagerProfession.CARTOGRAPHER;
+        } else if (canonical.contains("stone") || canonical.contains("brick") || canonical.contains("terracotta") || canonical.contains("quartz")) {
+            workstationBlock = Blocks.STONECUTTER;
+            profKey = VillagerProfession.MASON;
+        } else if (canonical.contains("leather") || canonical.contains("saddle") || canonical.contains("scute")) {
+            workstationBlock = Blocks.CAULDRON;
+            profKey = VillagerProfession.LEATHERWORKER;
+        } else {
+            Item targetItem = LibrarianCore.findItem(source.getLevel(), query);
+            if (targetItem != null) {
+                String path = targetItem.builtInRegistryHolder().key().identifier().getPath();
+                if (path.contains("wool") || path.contains("shear") || path.contains("carpet") || path.contains("dye")) {
+                    workstationBlock = Blocks.LOOM;
+                    profKey = VillagerProfession.SHEPHERD;
+                } else if (path.contains("bread") || path.contains("wheat") || path.contains("carrot") || path.contains("potato") || path.contains("beetroot") || path.contains("melon") || path.contains("pumpkin") || path.contains("apple") || path.contains("cookie")) {
+                    workstationBlock = Blocks.COMPOSTER;
+                    profKey = VillagerProfession.FARMER;
+                } else if (path.contains("pickaxe") || path.contains("shovel") || path.contains("hoe")) {
+                    workstationBlock = Blocks.SMITHING_TABLE;
+                    profKey = VillagerProfession.TOOLSMITH;
+                } else if (path.contains("sword")) {
+                    workstationBlock = Blocks.GRINDSTONE;
+                    profKey = VillagerProfession.WEAPONSMITH;
+                } else if (path.contains("helmet") || path.contains("chestplate") || path.contains("leggings") || path.contains("boots") || path.contains("shield")) {
+                    workstationBlock = Blocks.BLAST_FURNACE;
+                    profKey = VillagerProfession.ARMORER;
+                } else if (path.contains("fish") || path.contains("salmon") || path.contains("cod") || path.contains("boat")) {
+                    workstationBlock = Blocks.BARREL;
+                    profKey = VillagerProfession.FISHERMAN;
+                } else if (path.contains("beef") || path.contains("pork") || path.contains("chicken") || path.contains("mutton") || path.contains("rabbit")) {
+                    workstationBlock = Blocks.SMOKER;
+                    profKey = VillagerProfession.BUTCHER;
+                } else if (path.contains("arrow") || path.contains("bow") || path.contains("crossbow") || path.contains("flint")) {
+                    workstationBlock = Blocks.FLETCHING_TABLE;
+                    profKey = VillagerProfession.FLETCHER;
+                }
             }
         }
 
@@ -143,7 +184,7 @@ public class LibrarianCommands {
             giveItem(player, new ItemStack(Items.BOOK, 64));
         }
 
-        source.sendSuccess(() -> Component.literal("\u00a7aSetup complete! Spawned an enclosed villager facing workstation with sign [\"" + query + "\"]. Right-click workstation to reroll trade!"), false);
+        source.sendSuccess(() -> Component.translatable("text.librarian_filter.setup_complete", query), false);
         return 1;
     }
 

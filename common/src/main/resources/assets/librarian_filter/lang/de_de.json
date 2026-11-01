@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] Handel aktualisiert zu: %s %s (%s Smaragde - Günstigster Preis)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] Handel aktualisiert zu: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] Kein passender Gegenstand oder Handel gefunden für: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] Keine passende Verzauberung oder Handel gefunden für: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s kann keine Verzauberungsbücher anbieten. Arbeitsstation muss ein Lesepult sein.",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] %s bietet keine Trades für Gegenstand: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] Mit dem Dorfbewohner wurde auf der aktuellen Stufe bereits gehandelt.",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] Kein Dorfbewohner mit dieser Arbeitsstation gefunden.",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] Dorfbewohner-Handel konnte nicht aktualisiert werden.",
+  "text.librarian_filter.player_only": "§cDieser Befehl muss von einem Spieler ausgeführt werden.",
+  "text.librarian_filter.creative_only": "§cDieser Befehl kann nur im Kreativmodus verwendet werden.",
+  "text.librarian_filter.setup_complete": "§aSetup abgeschlossen! Eingesperrter Dorfbewohner vor Station mit Schild [\"%s\"] platziert. Klicke rechts auf die Station, um neu zu würfeln!",
+  "text.librarian_filter.help": "§a[Librarian Filter] Nutze §e/reroll setup§a für eine Testzelle, §e/reroll list§a für Bücher oder §e/reroll find <Verzauberung>§a zum Finden von Dorfbewohnern."
+}

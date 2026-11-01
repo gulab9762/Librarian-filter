@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] व्यापार अपडेट हुआ: %s %s (%s पन्ने - न्यूनतम मूल्य)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] व्यापार अपडेट हुआ: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] इसके लिए कोई वस्तु या व्यापार नहीं मिला: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] इसके लिए कोई जादू या व्यापार नहीं मिला: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s जादुई किताबें नहीं दे सकता। कार्यस्थान एक लेक्टर्न होना चाहिए।",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] %s के पास इस वस्तु के लिए कोई व्यापार नहीं है: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] ग्रामीण के साथ वर्तमान स्तर पर पहले ही व्यापार किया जा चुका है।",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] इस कार्यस्थल से जुड़ा कोई ग्रामीण नहीं मिला।",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] ग्रामीण के व्यापार को अपडेट करने में विफल।",
+  "text.librarian_filter.player_only": "§cयह कमांड किसी खिलाड़ी द्वारा ही चलाई जानी चाहिए।",
+  "text.librarian_filter.creative_only": "§cयह कमांड केवल क्रिएटिव मोड में उपयोग की जा सकती है।",
+  "text.librarian_filter.setup_complete": "§aसेटअप पूरा हुआ! [\"%s\"] साइन के साथ ग्रामीण तैयार है। नया व्यापार पाने के लिए कार्यस्थान पर राइट-क्लिक करें!",
+  "text.librarian_filter.help": "§a[Librarian Filter] बूथ बनाने के लिए §e/reroll setup§a, किताबों के लिए §e/reroll list§a या ग्रामीणों को खोजने के लिए §e/reroll find <जादू>§a का उपयोग करें।"
+}

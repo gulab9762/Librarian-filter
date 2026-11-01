@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] Troca atualizada para: %s %s (%s Esmeraldas - Menor Preço)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] Troca atualizada para: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] Nenhum item ou troca correspondente encontrado para: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] Nenhum encantamento ou troca encontrado para: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s não pode oferecer livros encantados. A bancada deve ser um Atril.",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] %s não possui trocas para o item: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] O aldeão já foi negociado no seu nível atual.",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] Nenhum aldeão encontrado com esta bancada.",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] Falha ao atualizar as trocas do aldeão.",
+  "text.librarian_filter.player_only": "§cEste comando deve ser executado por um jogador.",
+  "text.librarian_filter.creative_only": "§cEste comando só pode ser usado no modo Criativo.",
+  "text.librarian_filter.setup_complete": "§aConfiguração concluída! Aldeão cercado gerado em frente à bancada com placa [\"%s\"]. Clique com o botão direito na bancada para rolar novamente!",
+  "text.librarian_filter.help": "§a[Librarian Filter] Use §e/reroll setup§a para gerar uma cabine, §e/reroll list§a para livros ou §e/reroll find <encantamento>§a para localizar aldeões."
+}
