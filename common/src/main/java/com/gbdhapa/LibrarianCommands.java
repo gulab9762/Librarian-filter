@@ -16,28 +16,31 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.WallSignBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignTextSlot;
-import net.minecraft.world.entity.EntityTypes;
-import net.minecraft.util.Prediction;
 import net.minecraft.world.phys.AABB;
 
 import java.util.*;
@@ -49,11 +52,15 @@ public class LibrarianCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("reroll")
                 .executes(context -> {
-                    context.getSource().sendSuccess(() -> Component.literal("\u00a7a[Librarian Filter] Use \u00a7e/reroll list\u00a7a to view supported book formats, \u00a7e/reroll find <enchantment>\u00a7a to locate offering villagers, \u00a7e/reroll setup\u00a7a to spawn a test booth (creative only), or \u00a7e/reroll clear\u00a7a to remove glow."), false);
+                    context.getSource().sendSuccess(() -> Component.literal("\u00a7a[Librarian Filter] Use \u00a7e/reroll setup\u00a7a to spawn a trapped villager booth, \u00a7e/reroll list\u00a7a for books, or \u00a7e/reroll find <enchantment>\u00a7a to locate villagers."), false);
                     return 1;
                 })
                 .then(Commands.literal("setup")
-                        .executes(LibrarianCommands::executeSetup)
+                        .requires(source -> source.isPlayer() && source.getPlayer() != null && source.getPlayer().isCreative())
+                        .executes(context -> executeSetup(context, "eff"))
+                        .then(Commands.argument("query", StringArgumentType.greedyString())
+                                .executes(context -> executeSetup(context, StringArgumentType.getString(context, "query")))
+                        )
                 )
                 .then(Commands.literal("list")
                         .executes(context -> executeList(context, 1))
@@ -79,7 +86,7 @@ public class LibrarianCommands {
         );
     }
 
-    private static int executeSetup(CommandContext<CommandSourceStack> context) {
+    private static int executeSetup(CommandContext<CommandSourceStack> context, String query) {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getPlayer();
         if (player == null) {
@@ -92,55 +99,43 @@ public class LibrarianCommands {
             return 0;
         }
 
-        ServerLevel level = source.getLevel();
-        BlockPos playerPos = player.blockPosition();
-        Direction facing = player.getDirection();
-        Direction opposite = facing.getOpposite();
+        Block workstationBlock = Blocks.LECTERN;
+        ResourceKey<VillagerProfession> profKey = VillagerProfession.LIBRARIAN;
 
-        BlockPos center = playerPos.relative(facing, 3); // 3 blocks in front of the player
-
-        // Build a small 3x3 interior glass room (5x5 outer)
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dy = -1; dy <= 3; dy++) {
-                for (int dz = -2; dz <= 2; dz++) {
-                    BlockPos pos = center.offset(dx, dy, dz);
-                    if (dy == -1) {
-                        level.setBlock(pos, Blocks.STONE.defaultBlockState(), 3); // Floor
-                    } else if (dx == -2 || dx == 2 || dz == -2 || dz == 2 || dy == 3) {
-                        level.setBlock(pos, Blocks.GLASS.defaultBlockState(), 3); // Walls & Roof
-                    } else {
-                        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3); // Interior
-                    }
-                }
+        Item targetItem = LibrarianCore.findItem(source.getLevel(), query);
+        if (targetItem != null) {
+            String path = targetItem.builtInRegistryHolder().key().identifier().getPath();
+            if (path.contains("wool") || path.contains("shear") || path.contains("carpet") || path.contains("dye")) {
+                workstationBlock = Blocks.LOOM;
+                profKey = VillagerProfession.SHEPHERD;
+            } else if (path.contains("bread") || path.contains("wheat") || path.contains("carrot") || path.contains("potato") || path.contains("beetroot") || path.contains("melon") || path.contains("pumpkin") || path.contains("apple") || path.contains("cookie")) {
+                workstationBlock = Blocks.COMPOSTER;
+                profKey = VillagerProfession.FARMER;
+            } else if (path.contains("pickaxe") || path.contains("shovel") || path.contains("hoe")) {
+                workstationBlock = Blocks.SMITHING_TABLE;
+                profKey = VillagerProfession.TOOLSMITH;
+            } else if (path.contains("sword")) {
+                workstationBlock = Blocks.GRINDSTONE;
+                profKey = VillagerProfession.WEAPONSMITH;
+            } else if (path.contains("helmet") || path.contains("chestplate") || path.contains("leggings") || path.contains("boots") || path.contains("shield")) {
+                workstationBlock = Blocks.BLAST_FURNACE;
+                profKey = VillagerProfession.ARMORER;
+            } else if (path.contains("fish") || path.contains("salmon") || path.contains("cod") || path.contains("boat")) {
+                workstationBlock = Blocks.BARREL;
+                profKey = VillagerProfession.FISHERMAN;
+            } else if (path.contains("beef") || path.contains("pork") || path.contains("chicken") || path.contains("mutton") || path.contains("rabbit")) {
+                workstationBlock = Blocks.SMOKER;
+                profKey = VillagerProfession.BUTCHER;
+            } else if (path.contains("arrow") || path.contains("bow") || path.contains("crossbow") || path.contains("flint")) {
+                workstationBlock = Blocks.FLETCHING_TABLE;
+                profKey = VillagerProfession.FLETCHER;
             }
         }
 
-        // Place Lectern inside the room, in front of the villager
-        BlockPos lecternPos = center.relative(opposite, 1);
-        level.setBlock(lecternPos, Blocks.LECTERN.defaultBlockState().setValue(LecternBlock.FACING, opposite), 3);
-
-        // Place Sign attached to the front of the Lectern (on the front wall facing player)
-        BlockPos signPos = lecternPos.relative(opposite, 1);
-        level.setBlock(signPos, Blocks.OAK_WALL_SIGN.defaultBlockState().setValue(WallSignBlock.FACING, opposite), 3);
-
-        // Clear the block directly above the sign so the player can reach and right-click the lectern directly
-        level.setBlock(signPos.above(), Blocks.AIR.defaultBlockState(), 3);
-
-        // Set default sign text "eff"
-        if (level.getBlockEntity(signPos) instanceof SignBlockEntity signEntity) {
-            signEntity.setText(signEntity.getText(SignTextSlot.FRONT).asMutable().setLine(0, Component.literal("eff")).asImmutable(), SignTextSlot.FRONT);
-            signEntity.setChanged();
-            level.sendBlockUpdated(signPos, signEntity.getBlockState(), signEntity.getBlockState(), 3);
+        Villager villager = setupBooth(source, player, query, workstationBlock, profKey);
+        if (villager == null) {
+            return 0;
         }
-
-        // Spawn Villager at center
-        Villager villager = new Villager(EntityTypes.VILLAGER, level);
-        villager.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
-
-        var professionHolder = level.registryAccess().lookupOrThrow(Registries.VILLAGER_PROFESSION).getOrThrow(VillagerProfession.LIBRARIAN);
-        villager.setVillagerData(villager.getVillagerData().withProfession(professionHolder));
-        villager.getBrain().setMemory(MemoryModuleType.JOB_SITE, GlobalPos.of(level.dimension(), lecternPos));
-        level.addFreshEntity(villager);
 
         // Give player 3 stacks of Emeralds and 3 stacks of Books
         for (int i = 0; i < 3; i++) {
@@ -148,8 +143,91 @@ public class LibrarianCommands {
             giveItem(player, new ItemStack(Items.BOOK, 64));
         }
 
-        source.sendSuccess(() -> Component.literal("\u00a7aSetup complete! Spawned a librarian in a glass booth and gave 3 stacks of emeralds and books. Right-click the lectern to test rerolling!"), false);
+        source.sendSuccess(() -> Component.literal("\u00a7aSetup complete! Spawned an enclosed, immobile villager facing workstation with sign [\"" + query + "\"]. Right-click workstation to reroll trade!"), false);
         return 1;
+    }
+
+    private static Villager setupBooth(CommandSourceStack source, ServerPlayer player, String signText, Block workstationBlock, ResourceKey<VillagerProfession> profKey) {
+        ServerLevel level = source.getLevel();
+        BlockPos playerPos = player.blockPosition();
+        Direction facing = player.getDirection();
+        Direction opposite = facing.getOpposite();
+        Direction left = facing.getCounterClockWise();
+        Direction right = facing.getClockWise();
+
+        BlockPos workstationPos = playerPos.relative(facing, 2);
+        BlockPos villagerPos = playerPos.relative(facing, 3);
+        BlockPos backPos = playerPos.relative(facing, 4);
+
+        // 1. Floor (Y = -1): 3x3 stone
+        for (int d = 2; d <= 4; d++) {
+            for (int lat = -1; lat <= 1; lat++) {
+                BlockPos floor = playerPos.relative(facing, d).relative(right, lat).below();
+                level.setBlock(floor, Blocks.STONE.defaultBlockState(), 3);
+            }
+        }
+
+        // 2. Ceiling (Y = +2): 3x3 glass so the villager cannot jump
+        for (int d = 2; d <= 4; d++) {
+            for (int lat = -1; lat <= 1; lat++) {
+                BlockPos ceiling = playerPos.relative(facing, d).relative(right, lat).above(2);
+                level.setBlock(ceiling, Blocks.GLASS.defaultBlockState(), 3);
+            }
+        }
+
+        // 3. Back wall (d = 4): 3x2 glass (x x x)
+        for (int lat = -1; lat <= 1; lat++) {
+            BlockPos b0 = backPos.relative(right, lat);
+            BlockPos b1 = b0.above();
+            level.setBlock(b0, Blocks.GLASS.defaultBlockState(), 3);
+            level.setBlock(b1, Blocks.GLASS.defaultBlockState(), 3);
+        }
+
+        // 4. Middle row (d = 3): left/right glass, center villager cell (x v x)
+        level.setBlock(villagerPos.relative(left), Blocks.GLASS.defaultBlockState(), 3);
+        level.setBlock(villagerPos.relative(left).above(), Blocks.GLASS.defaultBlockState(), 3);
+        level.setBlock(villagerPos.relative(right), Blocks.GLASS.defaultBlockState(), 3);
+        level.setBlock(villagerPos.relative(right).above(), Blocks.GLASS.defaultBlockState(), 3);
+        level.setBlock(villagerPos, Blocks.AIR.defaultBlockState(), 3);
+        level.setBlock(villagerPos.above(), Blocks.AIR.defaultBlockState(), 3);
+
+        // 5. Front row (d = 2): left/right glass, center workstation (x w x)
+        level.setBlock(workstationPos.relative(left), Blocks.GLASS.defaultBlockState(), 3);
+        level.setBlock(workstationPos.relative(left).above(), Blocks.GLASS.defaultBlockState(), 3);
+        level.setBlock(workstationPos.relative(right), Blocks.GLASS.defaultBlockState(), 3);
+        level.setBlock(workstationPos.relative(right).above(), Blocks.GLASS.defaultBlockState(), 3);
+
+        if (workstationBlock == Blocks.LECTERN) {
+            level.setBlock(workstationPos, Blocks.LECTERN.defaultBlockState().setValue(LecternBlock.FACING, opposite), 3);
+        } else {
+            level.setBlock(workstationPos, workstationBlock.defaultBlockState(), 3);
+        }
+        level.setBlock(workstationPos.above(), Blocks.AIR.defaultBlockState(), 3);
+
+        // 6. Sign attached to front of workstation
+        BlockPos signPos = workstationPos.relative(opposite, 1);
+        level.setBlock(signPos, Blocks.OAK_WALL_SIGN.defaultBlockState().setValue(WallSignBlock.FACING, opposite), 3);
+        level.setBlock(signPos.above(), Blocks.AIR.defaultBlockState(), 3);
+
+        if (level.getBlockEntity(signPos) instanceof SignBlockEntity signEntity) {
+            signEntity.setText(signEntity.getText(SignTextSlot.FRONT).asMutable().setLine(0, Component.literal(signText)).asImmutable(), SignTextSlot.FRONT);
+            signEntity.setChanged();
+            level.sendBlockUpdated(signPos, signEntity.getBlockState(), signEntity.getBlockState(), 3);
+        }
+
+        // 7. Spawn enclosed Villager with NoAI so he cannot move
+        Villager villager = new Villager(EntityTypes.VILLAGER, level);
+        villager.setPos(villagerPos.getX() + 0.5, villagerPos.getY(), villagerPos.getZ() + 0.5);
+        villager.setYRot(opposite.toYRot());
+        villager.setYHeadRot(opposite.toYRot());
+        villager.setNoAi(true);
+
+        var professionHolder = level.registryAccess().lookupOrThrow(Registries.VILLAGER_PROFESSION).getOrThrow(profKey);
+        villager.setVillagerData(villager.getVillagerData().withProfession(professionHolder));
+        villager.getBrain().setMemory(MemoryModuleType.JOB_SITE, GlobalPos.of(level.dimension(), workstationPos));
+        level.addFreshEntity(villager);
+
+        return villager;
     }
 
     private static void giveItem(ServerPlayer player, ItemStack stack) {

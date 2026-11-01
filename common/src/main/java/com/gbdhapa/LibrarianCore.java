@@ -8,15 +8,22 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.EnchantmentTags;
+import net.minecraft.util.Unit;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerData;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -25,12 +32,17 @@ import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
+import net.minecraft.world.item.trading.TradeSet;
+import net.minecraft.world.item.trading.VillagerTrade;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.AABB;
 
 import java.util.*;
@@ -40,6 +52,8 @@ import java.util.regex.Pattern;
 public class LibrarianCore {
 
     public record MatchResult(Holder.Reference<Enchantment> holder, int level) {}
+
+    public record ItemMatchResult(MerchantOffer offer, int level, Item targetItem, String itemName) {}
 
     private static final Pattern LEVEL_PATTERN = Pattern.compile("^(.*?)[\\s\\-_:]+(\\d+)$");
 
@@ -117,13 +131,43 @@ public class LibrarianCore {
         return Math.max(1, Math.min(64, cost));
     }
 
+    public static String getItemDisplayName(Item item) {
+        if (item == null) return "Unknown";
+        return item.getDefaultInstance().getHoverName().getString();
+    }
+
+    public static ResourceKey<VillagerProfession> getProfessionForWorkstation(BlockState state) {
+        if (state.is(Blocks.LECTERN)) return VillagerProfession.LIBRARIAN;
+        if (state.is(Blocks.COMPOSTER)) return VillagerProfession.FARMER;
+        if (state.is(Blocks.LOOM)) return VillagerProfession.SHEPHERD;
+        if (state.is(Blocks.BARREL)) return VillagerProfession.FISHERMAN;
+        if (state.is(Blocks.SMOKER)) return VillagerProfession.BUTCHER;
+        if (state.is(Blocks.BLAST_FURNACE)) return VillagerProfession.ARMORER;
+        if (state.is(Blocks.SMITHING_TABLE)) return VillagerProfession.TOOLSMITH;
+        if (state.is(Blocks.GRINDSTONE)) return VillagerProfession.WEAPONSMITH;
+        if (state.is(Blocks.CARTOGRAPHY_TABLE)) return VillagerProfession.CARTOGRAPHER;
+        if (state.is(Blocks.BREWING_STAND)) return VillagerProfession.CLERIC;
+        if (state.is(Blocks.FLETCHING_TABLE)) return VillagerProfession.FLETCHER;
+        if (state.is(Blocks.CAULDRON) || state.is(Blocks.WATER_CAULDRON) || state.is(Blocks.LAVA_CAULDRON) || state.is(Blocks.POWDER_SNOW_CAULDRON)) {
+            return VillagerProfession.LEATHERWORKER;
+        }
+        if (state.is(Blocks.STONECUTTER)) return VillagerProfession.MASON;
+        return null;
+    }
+
+    public static boolean isWorkstationBlock(BlockState state) {
+        return getProfessionForWorkstation(state) != null;
+    }
+
     public static InteractionResult handleRightClick(Player player, Level level, BlockPos clickedPos, InteractionHand hand) {
         if (hand != InteractionHand.MAIN_HAND) {
             return InteractionResult.PASS;
         }
 
         BlockState clickedState = level.getBlockState(clickedPos);
-        if (!clickedState.is(Blocks.LECTERN)) {
+
+        // Only handle clicks on the workstation itself; allow vanilla sign editing when clicking signs
+        if (!isWorkstationBlock(clickedState)) {
             return InteractionResult.PASS;
         }
 
@@ -146,8 +190,21 @@ public class LibrarianCore {
 
         Villager villager = findAssignedVillager(serverLevel, clickedPos);
         if (villager == null) {
-            sendFailure(serverLevel, player, null, clickedPos, "No villager found with this lectern as their job station.");
+            sendFailure(serverLevel, player, null, clickedPos, "No villager found with this workstation as their job station.");
             return InteractionResult.SUCCESS;
+        }
+
+        // If villager has no profession, assign the profession of the claimed workstation
+        Holder<VillagerProfession> profHolder = villager.getVillagerData().profession();
+        if (profHolder.is(VillagerProfession.NONE)) {
+            ResourceKey<VillagerProfession> workstationProf = getProfessionForWorkstation(clickedState);
+            if (workstationProf != null) {
+                var opt = serverLevel.registryAccess().lookupOrThrow(Registries.VILLAGER_PROFESSION).get(workstationProf);
+                if (opt.isPresent()) {
+                    profHolder = opt.get();
+                    villager.setVillagerData(villager.getVillagerData().withProfession(profHolder));
+                }
+            }
         }
 
         if (hasTradedForCurrentLevel(villager)) {
@@ -155,41 +212,87 @@ public class LibrarianCore {
             return InteractionResult.SUCCESS;
         }
 
-        MatchResult match = findMatchingEnchantment(serverLevel, rawLines);
-        if (match == null) {
+        boolean isLibrarian = profHolder.is(VillagerProfession.LIBRARIAN);
+
+        if (isLibrarian) {
+            // First check if sign text specifies an enchantment
+            MatchResult enchMatch = findMatchingEnchantment(serverLevel, rawLines);
+            if (enchMatch != null) {
+                boolean updated = applyEnchantedBookTrade(villager, enchMatch.holder(), enchMatch.level());
+                if (!updated) {
+                    sendFailure(serverLevel, player, villager, clickedPos, "Failed to update villager trades.");
+                    return InteractionResult.SUCCESS;
+                }
+                sendSuccess(serverLevel, player, villager, enchMatch);
+                return InteractionResult.SUCCESS;
+            }
+
+            // Fallback for Librarians: check if sign text specifies an item trade (e.g. paper, lantern, bookshelf)
+            ItemMatchResult itemMatch = findMatchingItemTrade(serverLevel, villager, rawLines);
+            if (itemMatch != null) {
+                boolean updated = applyItemTrade(villager, itemMatch);
+                if (!updated) {
+                    sendFailure(serverLevel, player, villager, clickedPos, "Failed to update villager trades.");
+                    return InteractionResult.SUCCESS;
+                }
+                sendItemSuccess(serverLevel, player, villager, itemMatch);
+                return InteractionResult.SUCCESS;
+            }
+
             String filterSummary = String.join(", ", rawLines.stream().map(String::trim).filter(s -> !s.isEmpty()).toList());
-            sendFailure(serverLevel, player, villager, clickedPos, "No matching enchantment found in game registry for: " + filterSummary);
+            sendFailure(serverLevel, player, villager, clickedPos, "No matching enchantment or trade found for: " + filterSummary);
+            return InteractionResult.SUCCESS;
+        } else {
+            // For other professions: check for item trade
+            ItemMatchResult itemMatch = findMatchingItemTrade(serverLevel, villager, rawLines);
+            if (itemMatch != null) {
+                boolean updated = applyItemTrade(villager, itemMatch);
+                if (!updated) {
+                    sendFailure(serverLevel, player, villager, clickedPos, "Failed to update villager trades.");
+                    return InteractionResult.SUCCESS;
+                }
+                sendItemSuccess(serverLevel, player, villager, itemMatch);
+                return InteractionResult.SUCCESS;
+            }
+
+            // If not found as item trade, check if an item was actually requested that this profession cannot trade
+            Item requestedItem = null;
+            for (String line : rawLines) {
+                requestedItem = findItem(serverLevel, line);
+                if (requestedItem != null) break;
+            }
+
+            String profName = profHolder.value().name().getString();
+            if (requestedItem != null) {
+                sendFailure(serverLevel, player, villager, clickedPos, profName + " has no trades for item: " + getItemDisplayName(requestedItem));
+                return InteractionResult.SUCCESS;
+            }
+
+            // If player typed an enchantment on a non-librarian workstation
+            MatchResult enchMatch = findMatchingEnchantment(serverLevel, rawLines);
+            if (enchMatch != null) {
+                sendFailure(serverLevel, player, villager, clickedPos, profName + " cannot offer enchanted books. Workstation must be a Lectern.");
+                return InteractionResult.SUCCESS;
+            }
+
+            String filterSummary = String.join(", ", rawLines.stream().map(String::trim).filter(s -> !s.isEmpty()).toList());
+            sendFailure(serverLevel, player, villager, clickedPos, "No matching item or trade found for: " + filterSummary);
             return InteractionResult.SUCCESS;
         }
-
-        boolean updated = applyEnchantedBookTrade(villager, match.holder(), match.level());
-        if (!updated) {
-            sendFailure(serverLevel, player, villager, clickedPos, "Failed to update villager trades.");
-            return InteractionResult.SUCCESS;
-        }
-
-        sendSuccess(serverLevel, player, villager, match);
-        return InteractionResult.SUCCESS;
     }
 
-    public static SignBlockEntity findAttachedSign(Level level, BlockPos lecternPos, BlockState lecternState) {
+    public static SignBlockEntity findAttachedSign(Level level, BlockPos workstationPos, BlockState workstationState) {
         List<BlockPos> candidates = new ArrayList<>();
 
-        if (lecternState.hasProperty(LecternBlock.FACING)) {
-            Direction facing = lecternState.getValue(LecternBlock.FACING);
-            candidates.add(lecternPos.relative(facing));
-            candidates.add(lecternPos.relative(facing.getOpposite()));
-        }
-
         for (Direction dir : Direction.Plane.HORIZONTAL) {
-            BlockPos p = lecternPos.relative(dir);
+            BlockPos p = workstationPos.relative(dir);
             if (!candidates.contains(p)) {
                 candidates.add(p);
             }
         }
 
-        candidates.add(lecternPos.above());
-        candidates.add(lecternPos.below());
+        candidates.add(workstationPos.above());
+        candidates.add(workstationPos.below());
 
         SignBlockEntity fallbackSign = null;
         for (BlockPos pos : candidates) {
@@ -226,14 +329,14 @@ public class LibrarianCore {
         return lines;
     }
 
-    public static Villager findAssignedVillager(ServerLevel serverLevel, BlockPos lecternPos) {
-        AABB searchBox = new AABB(lecternPos).inflate(48.0);
+    public static Villager findAssignedVillager(ServerLevel serverLevel, BlockPos workstationPos) {
+        AABB searchBox = new AABB(workstationPos).inflate(48.0);
         List<Villager> villagers = serverLevel.getEntitiesOfClass(Villager.class, searchBox);
         for (Villager candidate : villagers) {
             Optional<GlobalPos> jobSiteOpt = candidate.getBrain().getMemory(MemoryModuleType.JOB_SITE);
             if (jobSiteOpt.isPresent()) {
                 GlobalPos globalPos = jobSiteOpt.get();
-                if (globalPos.dimension().equals(serverLevel.dimension()) && globalPos.pos().equals(lecternPos)) {
+                if (globalPos.dimension().equals(serverLevel.dimension()) && globalPos.pos().equals(workstationPos)) {
                     return candidate;
                 }
             }
@@ -365,6 +468,199 @@ public class LibrarianCore {
         return bestMatch;
     }
 
+    public static Item findItem(ServerLevel serverLevel, String textQuery) {
+        if (textQuery == null) return null;
+        String q = textQuery.trim().toLowerCase(Locale.ROOT);
+        if (q.contains(">")) {
+            q = q.split(">")[0].trim();
+        }
+        q = q.replaceAll("[-:]+$", "").trim();
+        if (q.isEmpty()) return null;
+
+        String qClean = q.replaceAll("[^a-z0-9]", "");
+        String qSpaced = q.replace("_", " ");
+
+        var itemRegistry = serverLevel.registryAccess().lookupOrThrow(Registries.ITEM);
+        List<Holder.Reference<Item>> allItems = itemRegistry.listElements().toList();
+
+        Holder.Reference<Item> bestMatch = null;
+        int bestPriority = Integer.MAX_VALUE;
+        int bestLength = Integer.MAX_VALUE;
+
+        for (Holder.Reference<Item> holder : allItems) {
+            Identifier id = holder.key().identifier();
+            String path = id.getPath().toLowerCase(Locale.ROOT);
+            String fullId = id.toString().toLowerCase(Locale.ROOT);
+            String desc = getItemDisplayName(holder.value()).toLowerCase(Locale.ROOT);
+
+            String pathClean = path.replaceAll("[^a-z0-9]", "");
+            String pathSpaced = path.replace("_", " ");
+            String descClean = desc.replaceAll("[^a-z0-9]", "");
+
+            int priority;
+            if (path.equals(q) || fullId.equals(q) || pathSpaced.equals(qSpaced) || pathClean.equals(qClean) || desc.equals(q)) {
+                priority = 1;
+            } else if (path.startsWith(q) || pathSpaced.startsWith(qSpaced) || fullId.startsWith(q) || desc.startsWith(q)) {
+                priority = 2;
+            } else if (!qClean.isEmpty() && (pathClean.startsWith(qClean) || descClean.startsWith(qClean))) {
+                priority = 3;
+            } else if (path.contains(q) || pathSpaced.contains(qSpaced) || desc.contains(q) || pathClean.contains(qClean)) {
+                priority = 4;
+            } else {
+                continue;
+            }
+
+            if (priority < bestPriority || (priority == bestPriority && path.length() < bestLength)) {
+                bestPriority = priority;
+                bestLength = path.length();
+                bestMatch = holder;
+            }
+        }
+
+        return bestMatch != null ? bestMatch.value() : null;
+    }
+
+    public static boolean matchesItem(MerchantOffer offer, Item targetItem) {
+        if (offer == null || targetItem == null) {
+            return false;
+        }
+        if (offer.getResult().is(targetItem)) {
+            return true;
+        }
+        if (offer.getItemCostA().item().value() == targetItem) {
+            return true;
+        }
+        if (offer.getItemCostB().isPresent() && offer.getItemCostB().get().item().value() == targetItem) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean isBetterOffer(MerchantOffer candidate, MerchantOffer currentBest, Item targetItem) {
+        if (candidate.getResult().is(targetItem)) {
+            int candidateCost = candidate.getItemCostA().count();
+            int bestCost = currentBest.getItemCostA().count();
+            if (candidateCost != bestCost) {
+                return candidateCost < bestCost;
+            }
+            return candidate.getResult().getCount() > currentBest.getResult().getCount();
+        }
+        if (candidate.getItemCostA().item().value() == targetItem) {
+            int candidateCost = candidate.getItemCostA().count();
+            int bestCost = currentBest.getItemCostA().count();
+            if (candidateCost != bestCost) {
+                return candidateCost < bestCost;
+            }
+            return candidate.getResult().getCount() > currentBest.getResult().getCount();
+        }
+        return false;
+    }
+
+    public static ItemMatchResult findMatchingItemTrade(ServerLevel serverLevel, Villager villager, List<String> signLines) {
+        Item targetItem = null;
+        for (String line : signLines) {
+            targetItem = findItem(serverLevel, line);
+            if (targetItem != null) {
+                break;
+            }
+        }
+
+        if (targetItem == null) {
+            return null;
+        }
+
+        Holder<VillagerProfession> profHolder = villager.getVillagerData().profession();
+        VillagerProfession prof = profHolder.value();
+        var tradeSetRegistry = serverLevel.registryAccess().lookupOrThrow(Registries.TRADE_SET);
+
+        int currentVillagerLevel = villager.getVillagerData().level();
+        List<Integer> levelsToSearch = new ArrayList<>();
+        levelsToSearch.add(currentVillagerLevel);
+        for (int l = 1; l <= 5; l++) {
+            if (l != currentVillagerLevel) {
+                levelsToSearch.add(l);
+            }
+        }
+
+        for (int lvl : levelsToSearch) {
+            ResourceKey<TradeSet> tradeSetKey = prof.getTrades(lvl);
+            if (tradeSetKey == null) {
+                continue;
+            }
+
+            TradeSet tradeSet = tradeSetRegistry.getOptional(tradeSetKey).orElse(null);
+            if (tradeSet == null) {
+                continue;
+            }
+
+            LootParams params = new LootParams.Builder(serverLevel)
+                    .withParameter(LootContextParams.ORIGIN, villager.position())
+                    .withParameter(LootContextParams.THIS_ENTITY, villager)
+                    .withParameter(LootContextParams.ADDITIONAL_COST_COMPONENT_ALLOWED, Unit.INSTANCE)
+                    .create(LootContextParamSets.VILLAGER_TRADE);
+
+            LootContext lootContext = new LootContext.Builder(params).create(tradeSet.randomSequence());
+
+            MerchantOffer bestOffer = null;
+            for (Holder<VillagerTrade> tradeHolder : tradeSet.trades()) {
+                VillagerTrade vt = tradeHolder.value();
+                for (int roll = 0; roll < 5; roll++) {
+                    MerchantOffer offer = vt.getOffer(lootContext);
+                    if (offer != null && matchesItem(offer, targetItem)) {
+                        if (bestOffer == null || isBetterOffer(offer, bestOffer, targetItem)) {
+                            bestOffer = offer;
+                        }
+                    }
+                }
+            }
+
+            if (bestOffer != null) {
+                String itemName = getItemDisplayName(targetItem);
+                return new ItemMatchResult(bestOffer, lvl, targetItem, itemName);
+            }
+        }
+
+        return null;
+    }
+
+    public static boolean applyItemTrade(Villager villager, ItemMatchResult match) {
+        MerchantOffers offers = villager.getOffers();
+        if (offers == null) {
+            offers = new MerchantOffers();
+        }
+
+        int tradeLevel = match.level();
+        if (tradeLevel > villager.getVillagerData().level()) {
+            villager.setVillagerData(villager.getVillagerData().withLevel(tradeLevel));
+            villager.setVillagerXp(VillagerData.getMinXpPerLevel(tradeLevel));
+        }
+
+        int targetIndex = -1;
+        for (int i = 0; i < offers.size(); i++) {
+            if (matchesItem(offers.get(i), match.targetItem())) {
+                targetIndex = i;
+                break;
+            }
+        }
+
+        if (targetIndex == -1) {
+            if (!offers.isEmpty()) {
+                targetIndex = offers.size() - 1;
+            }
+        }
+
+        MerchantOffers updatedOffers = new MerchantOffers();
+        updatedOffers.addAll(offers);
+        if (targetIndex >= 0 && targetIndex < updatedOffers.size()) {
+            updatedOffers.set(targetIndex, match.offer().copy());
+        } else {
+            updatedOffers.add(match.offer().copy());
+        }
+
+        villager.setOffers(updatedOffers);
+        return true;
+    }
+
     public static boolean applyEnchantedBookTrade(Villager villager, Holder.Reference<Enchantment> holder, int level) {
         MerchantOffers offers = villager.getOffers();
         if (offers == null) {
@@ -414,9 +710,27 @@ public class LibrarianCore {
         serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX(), villager.getY() + 1.0, villager.getZ(), 15, 0.5, 0.5, 0.5, 0.02);
         serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
 
+        villager.addEffect(new MobEffectInstance(MobEffects.GLOWING, 10 * 20, 0, false, false));
+
         String enchName = match.holder().value().description().getString();
         int lowestCost = getLowestPrice(match.holder(), match.level());
         player.sendSystemMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"));
+    }
+
+    private static void sendItemSuccess(ServerLevel serverLevel, Player player, Villager villager, ItemMatchResult match) {
+        serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX(), villager.getY() + 1.0, villager.getZ(), 15, 0.5, 0.5, 0.5, 0.02);
+        serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
+
+        villager.addEffect(new MobEffectInstance(MobEffects.GLOWING, 10 * 20, 0, false, false));
+
+        MerchantOffer offer = match.offer();
+        String costStr = offer.getItemCostA().count() + " " + getItemDisplayName(offer.getItemCostA().item().value());
+        if (offer.getItemCostB().isPresent()) {
+            costStr += " + " + offer.getItemCostB().get().count() + " " + getItemDisplayName(offer.getItemCostB().get().item().value());
+        }
+        String resultStr = offer.getResult().getCount() + " " + offer.getResult().getHoverName().getString();
+
+        player.sendSystemMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + match.itemName() + " (" + costStr + " -> " + resultStr + ")"));
     }
 
     private static void sendFailure(ServerLevel serverLevel, Player player, Villager villager, BlockPos fallbackPos, String reason) {

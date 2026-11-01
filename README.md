@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/bWWwkFryuA)
+[![Discord](https://img.shields.io/discord/1438056215870705776?color=5865F2&logo=discord&logoColor=white&label=Discord)](https://discord.gg/bWWwkFryuA)
 [![Download](https://img.shields.io/badge/Download-Latest%20JAR-00AF5C?logo=modrinth&logoColor=white)](https://modrinth.com/mod/easylibrariantrade/versions)
 
 > **Say goodbye to breaking and replacing lecterns 500 times!**  
@@ -33,6 +33,7 @@ Tired of the endless loop of placing a lectern, checking for **Mending**, breaki
 1. **Place a Sign** on or against the villager's workstation (Lectern, Loom, Composter, etc.).
 2. **Write the Trade/Enchantment** on the sign (short abbreviation or full item name).
 3. **Right-Click the Workstation** to trigger the instant reroll!
+   * 💡 *Right-clicking the sign allows editing your filter text at any time without rerolling; only right-clicking the workstation activates the reroll.*
    * 🟢 **Green Particles**: Successful reroll! The villager has your exact requested trade.
    * 🔴 **Angry Particles**: Villager could not roll this trade (e.g., locked trade or invalid item).
 
