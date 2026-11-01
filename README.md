@@ -1,63 +1,92 @@
-# Instant Reroll specific trade from villagers using sign on workstation
+# ⚡ Instant Villager Trade Reroller (Librarian Filter)
 
-1. Place sign on workstation
-2. Type few letters or full name of item/Enchantment book (without space, use _ for spaces)
-3. Right click on workstation to reroll trade, villager and workstation will show green particles if success, angry if failed
+> **Say goodbye to breaking and replacing lecterns 500 times!**  
+> Instant, hassle-free villager trade rerolling using simple signs on workstations. Filter enchantments, items, and levels in seconds.
 
-# What to type on sign ? 
-Normal item name like 
+---
 
-bread -> bread
+## 🌟 Why You Need This Mod
 
-white_wool -> White wool
+Tired of the endless loop of placing a lectern, checking for **Mending**, breaking the lectern, and repeating for 45 minutes?
 
-(Suggestion list added in 26.1 and later versions)
+**Librarian Filter** lets you simply write the trade or enchantment book you want on a sign attached to the workstation, right-click, and **instantly refresh/reroll** until the villager gives you that exact trade.
 
-# Why sign?
+* ⏱️ **Instant Reroll** — Get Mending, Efficiency V, Unbreaking III, or any item in seconds.
+* 🏷️ **Sign-Based Filtering** — Write what you want directly on the workstation.
+* 🎯 **Smart Shorthand** — Type abbreviations (`eff`, `prot`, `unbr`) or full names (`white_wool`).
+* 🔝 **Automatic Max Level** — Omitting the level automatically targets the maximum enchantment level!
+* ✨ **Visual Feedback** — Happy green villager particles on success, angry clouds on failure, plus villager glowing so you know who claimed it!
+* 🧩 **Universal Multi-Loader** — Runs seamlessly on **Fabric**, **NeoForge**, **Forge**, and **Quilt**!
 
-You cannot ask villagers because you dont know how to say in hmmmmmm, so you write in on sign
-Also you want to remember which villager offer which trade once you setup trading hall right?
+---
 
-# Why particles?
+## 🚀 How It Works (Quick 3-Step Guide)
 
-To find villager roaming around....
+1. **Place a Sign** on or against the villager's workstation (Lectern, Loom, Composter, etc.).
+2. **Write the Trade/Enchantment** on the sign (short abbreviation or full item name).
+3. **Right-Click the Workstation** to trigger the instant reroll!
+   * 🟢 **Green Particles**: Successful reroll! The villager has your exact requested trade.
+   * 🔴 **Angry Particles**: Villager could not roll this trade (e.g., locked trade or invalid item).
 
-# What about enchantment books? 
+---
 
-For enchantment books, full name or starting partial name followed by enchantment level.
-If level not specified, by default gives max level enchantment book
+## 📝 What to Type on the Sign?
 
-eff -> Efficiency 5
+### 📚 Enchantment Books (Librarians)
+Type full name or starting partial letters, optionally followed by level. If level is omitted, the mod defaults to **Max Level**!
 
-eff 3 -> Efficiency 3
+| Sign Text | Resulting Enchantment | Notes |
+| :--- | :--- | :--- |
+| `mending` | **Mending I** | Single tier enchantments auto-match |
+| `eff` | **Efficiency V** | Defaults to max tier |
+| `eff 3` | **Efficiency III** | Specific requested tier |
+| `unbr` | **Unbreaking III** | Defaults to max tier |
+| `fortune` | **Fortune III** | Defaults to max tier |
+| `sharp` | **Sharpness V** | Defaults to max tier |
+| `silk` | **Silk Touch I** | Instant match |
 
-# I am still confused to figure out what to type I need whole list
+### 🥖 Normal Items (Any Profession)
+For normal item trades, type the item registry name. Use underscores `_` for spaces:
 
-Wiki for full list- https://github.com/gulab9762/Librarian-filter/wiki
+| Sign Text | Resulting Trade |
+| :--- | :--- |
+| `bread` | **Bread** |
+| `white_wool` | **White Wool** |
+| `iron_pickaxe` | **Iron Pickaxe** |
+| `golden_carrot` | **Golden Carrot** |
 
-# Mod not working / Need Help?
+*(💡 Interactive in-game suggestion auto-complete available in MC 26.1 and later!)*
 
-### In-Game AI Debugging Helper (Free Local LLM)
-If reroll isn't working or you're confused what to type on the sign, ask the built-in AI helper directly in game chat:
-- `/reroll ai why is reroll not working`
-- `/reroll debug`
-- `/reroll ai whats max level for eff`
-- `/reroll clear` or `/reroll ai clear` (Clears cached context and reroll history so AI starts fresh)
-- `/reroll ai <any question>`
+---
 
-The AI reads your recent in-game reroll attempts, logs, villager state, and mod config to pinpoint the exact issue (e.g. villager already traded, typo on sign, missing sign, or Trade Rebalance biome locking).
+## 🤔 Frequently Asked Questions
 
-#### How to start Local AI (100% Free & Private):
-1. Download Ollama from https://ollama.com
-2. Open terminal/PowerShell and run:
-   ```bash
-   ollama run qwen2.5-coder:7b
-   ```
-   *(Or for lower-spec PCs: `ollama run qwen2.5-coder:1.5b` or `ollama run llama3.2`)*
-3. If Ollama is not running, the mod will remind you in game chat with instructions and a link!
-4. To change the model or URL, edit `config/librarian-filter.json` (`"ollamaModel"` and `"ollamaUrl"`).
+### Why use a Sign?
+> Because you cannot speak fluent *"Hmmmmmm"* to villagers! Writing it on a sign bridges the communication gap. Plus, once your trading hall is built, the signs double as permanent labels so you never forget who sells what!
 
-Check wiki, if something new, report issues/suggestions on discord server
-Discord- https://discord.gg/bWWwkFryuA
+### Why the particles & glowing?
+> Villagers love to wander around. When a reroll succeeds, green particles pop and the villager briefly glows so you can spot them in a crowd.
 
-# Happy trading !! hmmmmmmm......
+### What if I need the full list of keywords?
+> 📖 Check the full comprehensive keyword list on our [**Official Wiki**](https://github.com/gulab9762/Librarian-filter/wiki).
+
+---
+
+## 🛠️ Helpful Commands
+
+* `/reroll setup` / `/reroll setup creative` — *(Creative / Testing)* Spawns a ready-to-test glass trading booth with a Librarian, Lectern, Sign, plus 3 stacks of emeralds & books!
+* `/reroll clear` — Clears glowing effects and active highlights from villagers.
+* `/reroll ai <question>` — Ask the optional built-in local LLM debugging assistant if a trade isn't rolling or you forgot a keyword!
+
+---
+
+## 🐛 Need Help or Found a Bug?
+
+* 📖 **Wiki & Docs**: [GitHub Wiki](https://github.com/gulab9762/Librarian-filter/wiki)
+* 💬 **Discord Community**: [Join our Discord Server](https://discord.gg/bWWwkFryuA)
+* 🐞 **Issue Tracker**: Report bugs on GitHub Issues
+
+---
+
+### 🏷️ SEO & Search Keywords
+`villager reroll` • `instant reroll` • `trade refresh` • `villager trade filter` • `easy trading` • `mending book` • `fast librarian trades` • `trading hall setup` • `enchantment reroller` • `minecraft villager trading` • `fabric` • `neoforge` • `forge` • `quilt`
