@@ -22,7 +22,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
+
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.npc.villager.Villager;
@@ -39,6 +39,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
 import net.minecraft.world.phys.AABB;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 public class LibrarianCommands {
@@ -175,7 +176,7 @@ public class LibrarianCommands {
         }
 
         // 7. Spawn enclosed Villager with normal AI (contained by glass booth)
-        Villager villager = new Villager(EntityTypes.VILLAGER, level);
+        Villager villager = new Villager(getVillagerEntityType(), level);
         villager.setPos(villagerPos.getX() + 0.5, villagerPos.getY(), villagerPos.getZ() + 0.5);
         villager.setYRot(opposite.toYRot());
         villager.setYHeadRot(opposite.toYRot());
@@ -191,6 +192,23 @@ public class LibrarianCommands {
     private static void giveItem(ServerPlayer player, ItemStack stack) {
         if (!player.addItem(stack)) {
             player.drop(stack, false);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static EntityType<Villager> getVillagerEntityType() {
+        try {
+            Class<?> entityTypeClass = Class.forName("net.minecraft.world.entity.EntityType");
+            Field field = entityTypeClass.getField("VILLAGER");
+            return (EntityType<Villager>) field.get(null);
+        } catch (Throwable ignored) {
+        }
+        try {
+            Class<?> entityTypesClass = Class.forName("net.minecraft.world.entity.EntityTypes");
+            Field field = entityTypesClass.getField("VILLAGER");
+            return (EntityType<Villager>) field.get(null);
+        } catch (Throwable t) {
+            throw new RuntimeException("Could not resolve Villager EntityType", t);
         }
     }
 
