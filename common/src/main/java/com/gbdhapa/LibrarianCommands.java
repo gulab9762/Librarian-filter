@@ -15,6 +15,8 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -46,7 +48,7 @@ public class LibrarianCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("reroll")
                 .executes(context -> {
-                    context.getSource().sendSuccess(Component.literal("\u00a7a[Librarian Filter] Use \u00a7e/reroll list\u00a7a to view supported book formats, \u00a7e/reroll find <enchantment>\u00a7a to locate offering villagers, \u00a7e/reroll setup\u00a7a to spawn a test booth (creative only), or \u00a7e/reroll clear\u00a7a to remove glow."), false);
+                    context.getSource().sendSuccess(new TextComponent("\u00a7a[Librarian Filter] Use \u00a7e/reroll list\u00a7a to view supported book formats, \u00a7e/reroll find <enchantment>\u00a7a to locate offering villagers, \u00a7e/reroll setup\u00a7a to spawn a test booth (creative only), or \u00a7e/reroll clear\u00a7a to remove glow."), false);
                     return 1;
                 })
                 .then(Commands.literal("setup")
@@ -77,14 +79,14 @@ public class LibrarianCommands {
 
     private static int executeSetup(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
-        ServerPlayer player = source.getPlayer();
+        ServerPlayer player = source.getEntity() instanceof ServerPlayer ? (ServerPlayer) source.getEntity() : null;
         if (player == null) {
-            source.sendFailure(Component.literal("\u00a7cThis command must be executed by a player."));
+            source.sendFailure(new TextComponent("\u00a7cThis command must be executed by a player."));
             return 0;
         }
 
         if (!player.isCreative()) {
-            source.sendFailure(Component.literal("\u00a7cThis command can only be used in Creative mode."));
+            source.sendFailure(new TextComponent("\u00a7cThis command can only be used in Creative mode."));
             return 0;
         }
 
@@ -124,7 +126,7 @@ public class LibrarianCommands {
 
         // Set default sign text "eff"
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity signEntity) {
-            signEntity.setMessage(0, Component.literal("eff"));
+            signEntity.setMessage(0, new TextComponent("eff"));
             signEntity.setChanged();
             level.sendBlockUpdated(signPos, signEntity.getBlockState(), signEntity.getBlockState(), 3);
         }
@@ -143,7 +145,7 @@ public class LibrarianCommands {
             giveItem(player, new ItemStack(Items.BOOK, 64));
         }
 
-        source.sendSuccess(Component.literal("\u00a7aSetup complete! Spawned a librarian in a glass booth and gave 3 stacks of emeralds and books. Right-click the lectern to test rerolling!"), false);
+        source.sendSuccess(new TextComponent("\u00a7aSetup complete! Spawned a librarian in a glass booth and gave 3 stacks of emeralds and books. Right-click the lectern to test rerolling!"), false);
         return 1;
     }
 
@@ -155,15 +157,15 @@ public class LibrarianCommands {
 
     private static int executeClear(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
-        ServerPlayer player = source.getPlayer();
+        ServerPlayer player = source.getEntity() instanceof ServerPlayer ? (ServerPlayer) source.getEntity() : null;
         if (player == null) {
-            source.sendFailure(Component.literal("\u00a7cThis command must be executed by a player."));
+            source.sendFailure(new TextComponent("\u00a7cThis command must be executed by a player."));
             return 0;
         }
 
         ServerLevel level = source.getLevel();
         int removed = clearPreviousGlow(level, player.getUUID());
-        source.sendSuccess(Component.literal("\u00a7aRemoved glowing effect from " + removed + " previously highlighted villager(s)."), false);
+        source.sendSuccess(new TextComponent("\u00a7aRemoved glowing effect from " + removed + " previously highlighted villager(s)."), false);
         return removed;
     }
 
@@ -195,7 +197,7 @@ public class LibrarianCommands {
                 .toList();
 
         if (enchantments.isEmpty()) {
-            source.sendFailure(Component.literal("\u00a7cNo enchantments found in registry."));
+            source.sendFailure(new TextComponent("\u00a7cNo enchantments found in registry."));
             return 0;
         }
 
@@ -203,10 +205,10 @@ public class LibrarianCommands {
         int totalPages = Math.max(1, (int) Math.ceil((double) enchantments.size() / pageSize));
         int page = Math.min(Math.max(1, requestedPage), totalPages);
 
-        source.sendSuccess(Component.literal("\u00a76========================================"), false);
-        source.sendSuccess(Component.literal("\u00a76   Librarian Books \u00a7e(Page " + page + "/" + totalPages + ")"), false);
-        source.sendSuccess(Component.literal("\u00a77   Write any of these keywords on a sign:"), false);
-        source.sendSuccess(Component.literal("\u00a76========================================"), false);
+        source.sendSuccess(new TextComponent("\u00a76========================================"), false);
+        source.sendSuccess(new TextComponent("\u00a76   Librarian Books \u00a7e(Page " + page + "/" + totalPages + ")"), false);
+        source.sendSuccess(new TextComponent("\u00a77   Write any of these keywords on a sign:"), false);
+        source.sendSuccess(new TextComponent("\u00a76========================================"), false);
 
         int start = (page - 1) * pageSize;
         int end = Math.min(start + pageSize, enchantments.size());
@@ -216,28 +218,28 @@ public class LibrarianCommands {
             String path = holder.key().location().getPath();
             Enchantment ench = holder.value();
             int maxLevel = ench.getMaxLevel();
-            String desc = Component.translatable(ench.getDescriptionId()).getString();
+            String desc = new TranslatableComponent(ench.getDescriptionId()).getString();
             int lowestCost = LibrarianCore.getLowestPrice(holder, maxLevel);
 
             String shortType = getSuggestedShortType(path);
 
-            MutableComponent entry = Component.literal(" \u00a7e* Type: \u00a7f\"" + shortType + "\" \u00a77(or \"" + path + "\") \u00a78-> ")
-                    .append(Component.literal("\u00a7a" + desc + " " + maxLevel))
-                    .append(Component.literal(" \u00a76[" + lowestCost + " Emeralds]"));
+            MutableComponent entry = new TextComponent(" \u00a7e* Type: \u00a7f\"" + shortType + "\" \u00a77(or \"" + path + "\") \u00a78-> ")
+                    .append(new TextComponent("\u00a7a" + desc + " " + maxLevel))
+                    .append(new TextComponent(" \u00a76[" + lowestCost + " Emeralds]"));
 
             source.sendSuccess(entry, false);
         }
 
         // Navigation controls
-        MutableComponent nav = Component.literal("\u00a76----------------------------------------\n ");
+        MutableComponent nav = new TextComponent("\u00a76----------------------------------------\n ");
         if (page > 1) {
-            MutableComponent prevBtn = Component.literal("\u00a7e[<< Prev] ")
+            MutableComponent prevBtn = new TextComponent("\u00a7e[<< Prev] ")
                     .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll list " + (page - 1))));
             nav.append(prevBtn);
         }
-        nav.append(Component.literal("\u00a77Page " + page + " of " + totalPages + " "));
+        nav.append(new TextComponent("\u00a77Page " + page + " of " + totalPages + " "));
         if (page < totalPages) {
-            MutableComponent nextBtn = Component.literal("\u00a7e[Next >>]")
+            MutableComponent nextBtn = new TextComponent("\u00a7e[Next >>]")
                     .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll list " + (page + 1))));
             nav.append(nextBtn);
         }
@@ -248,9 +250,9 @@ public class LibrarianCommands {
 
     private static int executeFind(CommandContext<CommandSourceStack> context, String query) {
         CommandSourceStack source = context.getSource();
-        ServerPlayer player = source.getPlayer();
+        ServerPlayer player = source.getEntity() instanceof ServerPlayer ? (ServerPlayer) source.getEntity() : null;
         if (player == null) {
-            source.sendFailure(Component.literal("\u00a7cThis command must be executed by a player."));
+            source.sendFailure(new TextComponent("\u00a7cThis command must be executed by a player."));
             return 0;
         }
 
@@ -263,11 +265,11 @@ public class LibrarianCommands {
         // 2. Find matching enchantment
         Holder.Reference<Enchantment> matchedEnchantment = LibrarianCore.findEnchantmentHolder(Registry.ENCHANTMENT.holders().toList(), query);
         if (matchedEnchantment == null) {
-            source.sendFailure(Component.literal("\u00a7cNo enchantment found matching: \"" + query + "\""));
+            source.sendFailure(new TextComponent("\u00a7cNo enchantment found matching: \"" + query + "\""));
             return 0;
         }
 
-        String enchantName = Component.translatable(matchedEnchantment.value().getDescriptionId()).getString();
+        String enchantName = new TranslatableComponent(matchedEnchantment.value().getDescriptionId()).getString();
         AABB searchBox = player.getBoundingBox().inflate(96.0);
         List<Villager> nearbyVillagers = level.getEntitiesOfClass(Villager.class, searchBox);
 
@@ -303,9 +305,9 @@ public class LibrarianCommands {
         if (!newlyFoundVillagers.isEmpty()) {
             GLOWING_VILLAGERS_BY_PLAYER.put(playerUuid, newlyFoundVillagers);
             final int finalCount = count;
-            source.sendSuccess(Component.literal("\u00a7aFound " + finalCount + " librarian(s) offering " + enchantName + "! Previous glow cleared; new ones glowing for 30s."), false);
+            source.sendSuccess(new TextComponent("\u00a7aFound " + finalCount + " librarian(s) offering " + enchantName + "! Previous glow cleared; new ones glowing for 30s."), false);
         } else {
-            source.sendFailure(Component.literal("\u00a7cNo nearby librarians found offering " + enchantName + " (searched 96-block radius)."));
+            source.sendFailure(new TextComponent("\u00a7cNo nearby librarians found offering " + enchantName + " (searched 96-block radius)."));
         }
 
         return count;

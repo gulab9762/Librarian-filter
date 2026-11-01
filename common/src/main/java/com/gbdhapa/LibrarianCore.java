@@ -7,6 +7,8 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -219,7 +221,7 @@ public class LibrarianCore {
         MerchantOffer matchedOffer = findMatchingTradeOffer(villager, queries);
         if (matchedOffer == null) {
             String filterSummary = String.join(", ", queries);
-            String profName = profession.name().toLowerCase(Locale.ROOT);
+            String profName = Registry.VILLAGER_PROFESSION.getKey(profession).getPath().toLowerCase(Locale.ROOT);
             sendFailure(serverLevel, player, villager, workstationPos,
                     "No matching trade found for " + profName + " (level " + villagerData.getLevel() + ") for: " + filterSummary);
             return InteractionResult.SUCCESS;
@@ -383,7 +385,7 @@ public class LibrarianCore {
             ResourceLocation id = holder.key().location();
             String path = id.getPath().toLowerCase(Locale.ROOT);
             String fullId = id.toString().toLowerCase(Locale.ROOT);
-            String desc = Component.translatable(holder.value().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
+            String desc = new TranslatableComponent(holder.value().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
 
             String pathClean = path.replaceAll("[^a-z0-9]", "");
             String pathSpaced = path.replace("_", " ");
@@ -468,9 +470,9 @@ public class LibrarianCore {
         serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX(), villager.getY() + 1.0, villager.getZ(), 15, 0.5, 0.5, 0.5, 0.02);
         serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
 
-        String enchName = Component.translatable(match.holder().value().getDescriptionId()).getString();
+        String enchName = new TranslatableComponent(match.holder().value().getDescriptionId()).getString();
         int lowestCost = getLowestPrice(match.holder(), match.level());
-        player.displayClientMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"), false);
+        player.displayClientMessage(new TextComponent("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"), false);
     }
 
     private static void sendFailure(ServerLevel serverLevel, Player player, Villager villager, BlockPos fallbackPos, String reason) {
@@ -482,7 +484,7 @@ public class LibrarianCore {
             serverLevel.playSound(null, fallbackPos.getX() + 0.5, fallbackPos.getY() + 1.0, fallbackPos.getZ() + 0.5, SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 1.0F, 1.0F);
         }
 
-        player.displayClientMessage(Component.literal("§c[Librarian Filter] " + reason), false);
+        player.displayClientMessage(new TextComponent("§c[Librarian Filter] " + reason), false);
     }
 
     public static List<String> cleanSignQueries(List<String> rawLines) {
@@ -588,7 +590,7 @@ public class LibrarianCore {
         }
 
         // 3. Check item translation key description (e.g. "item.minecraft.potato")
-        String descName = Component.translatable(stack.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
+        String descName = new TranslatableComponent(stack.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
         if (descName.startsWith(q) || descName.contains(q)) {
             return true;
         }
@@ -621,7 +623,7 @@ public class LibrarianCore {
                         return true;
                     }
                 }
-                String effectName = Component.translatable(effectInstance.getEffect().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
+                String effectName = new TranslatableComponent(effectInstance.getEffect().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
                 if (effectName.startsWith(q) || effectName.contains(q)) {
                     return true;
                 }
@@ -636,7 +638,7 @@ public class LibrarianCore {
                     return true;
                 }
             }
-            String effectName = Component.translatable(effectInstance.getEffect().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
+            String effectName = new TranslatableComponent(effectInstance.getEffect().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
             if (effectName.startsWith(q) || effectName.contains(q)) {
                 return true;
             }
@@ -664,7 +666,7 @@ public class LibrarianCore {
                                 return true;
                             }
                         }
-                        String effName = Component.translatable(effect.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
+                        String effName = new TranslatableComponent(effect.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
                         if (effName.startsWith(q) || effName.contains(q)) {
                             return true;
                         }
@@ -683,7 +685,7 @@ public class LibrarianCore {
                     return true;
                 }
             }
-            String enchName = Component.translatable(ench.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
+            String enchName = new TranslatableComponent(ench.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
             if (enchName.startsWith(q) || enchName.contains(q)) {
                 return true;
             }
@@ -794,6 +796,6 @@ public class LibrarianCore {
         String costADesc = offer.getCostA().getCount() + " " + offer.getCostA().getHoverName().getString();
         String costBDesc = !offer.getCostB().isEmpty() ? " + " + offer.getCostB().getCount() + " " + offer.getCostB().getHoverName().getString() : "";
 
-        player.displayClientMessage(Component.literal("§a[Librarian Filter] Updated trade to: " + costADesc + costBDesc + " -> " + offer.getResult().getCount() + " " + resultDesc), false);
+        player.displayClientMessage(new TextComponent("§a[Librarian Filter] Updated trade to: " + costADesc + costBDesc + " -> " + offer.getResult().getCount() + " " + resultDesc), false);
     }
 }

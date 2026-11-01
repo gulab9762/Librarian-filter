@@ -5,7 +5,7 @@ import com.gbdhapa.Constants;
 import com.gbdhapa.LibrarianCommands;
 import com.gbdhapa.LibrarianCore;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 
 public class LibrarianfilterFabric implements ModInitializer {
@@ -19,7 +19,7 @@ public class LibrarianfilterFabric implements ModInitializer {
             return LibrarianCore.handleRightClick(player, world, hitResult.getBlockPos(), hand);
         });
 
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+        CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
             LibrarianCommands.register(dispatcher);
             Constants.LOG.info("Registered /reroll commands for {}", Constants.MOD_NAME);
         });
