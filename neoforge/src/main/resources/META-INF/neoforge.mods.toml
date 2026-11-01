@@ -14,13 +14,13 @@ A mod that allows you to reroll villager trades easily using signs.
 [[dependencies.librarian_filter]]
     modId="neoforge"
     type="required"
-    versionRange="[26.2,)"
+    versionRange="[26.1,)"
     ordering="NONE"
     side="BOTH"
 
 [[dependencies.librarian_filter]]
     modId="minecraft"
     type="required"
-    versionRange="[26.2,)"
+    versionRange="[26.1, 26.3)"
     ordering="NONE"
     side="BOTH"
