@@ -3,9 +3,8 @@ package com.gbdhapa;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.Holder;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.Registry;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
@@ -15,11 +14,14 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.EnchantedBookItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -33,34 +35,16 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.entity.npc.VillagerData;
-import net.minecraft.world.entity.npc.VillagerProfession;
-import net.minecraft.world.entity.npc.VillagerTrades;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionUtils;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.world.level.block.WallSignBlock;
-import net.minecraft.world.level.block.StandingSignBlock;
-
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LibrarianCore {
 
-    public record MatchResult(Holder.Reference<Enchantment> holder, int level) {}
+    public record MatchResult(Enchantment enchantment, int level) {}
 
     private static final Pattern LEVEL_PATTERN = Pattern.compile("^(.*?)[\\s\\-_:]+(\\d+)$");
 
-    /**
-     * Researched map of vanilla enchantments at their MAXIMUM level with their absolute
-     * LOWEST possible emerald price in vanilla Minecraft.
-     */
     public static final Map<String, Integer> LOWEST_PRICES_FOR_MAX_LEVEL = Map.ofEntries(
             // Level 5 (min: 2 + 3*5 = 17 emeralds)
             Map.entry("efficiency", 17),
@@ -115,43 +99,20 @@ public class LibrarianCore {
             Map.entry("vanishing_curse", 10)
     );
 
-    public static int getLowestPrice(Holder.Reference<Enchantment> holder, int level) {
-        String path = holder.key().location().getPath().toLowerCase(Locale.ROOT);
-        Enchantment enchantment = holder.value();
+    public static int getLowestPrice(Enchantment ench, int level) {
+        ResourceLocation id = Registry.ENCHANTMENT.getKey(ench);
+        String path = id != null ? id.getPath().toLowerCase(Locale.ROOT) : "";
 
-        if (level == enchantment.getMaxLevel() && LOWEST_PRICES_FOR_MAX_LEVEL.containsKey(path)) {
+        if (level == ench.getMaxLevel() && LOWEST_PRICES_FOR_MAX_LEVEL.containsKey(path)) {
             return LOWEST_PRICES_FOR_MAX_LEVEL.get(path);
         }
 
-        boolean isDoublePrice = holder.value().isTreasureOnly();
+        boolean isDoublePrice = ench.isTreasureOnly();
         int cost = 2 + 3 * level;
         if (isDoublePrice) {
             cost *= 2;
         }
         return Math.max(1, Math.min(64, cost));
-    }
-
-    public static final Set<net.minecraft.world.level.block.Block> WORKSTATIONS = Set.of(
-            Blocks.LECTERN,
-            Blocks.COMPOSTER,
-            Blocks.FLETCHING_TABLE,
-            Blocks.BLAST_FURNACE,
-            Blocks.SMOKER,
-            Blocks.CARTOGRAPHY_TABLE,
-            Blocks.BREWING_STAND,
-            Blocks.BARREL,
-            Blocks.CAULDRON,
-            Blocks.WATER_CAULDRON,
-            Blocks.LAVA_CAULDRON,
-            Blocks.POWDER_SNOW_CAULDRON,
-            Blocks.STONECUTTER,
-            Blocks.LOOM,
-            Blocks.SMITHING_TABLE,
-            Blocks.GRINDSTONE
-    );
-
-    public static boolean isWorkstation(BlockState state) {
-        return state != null && WORKSTATIONS.contains(state.getBlock());
     }
 
     public static InteractionResult handleRightClick(Player player, Level level, BlockPos clickedPos, InteractionHand hand) {
@@ -160,14 +121,13 @@ public class LibrarianCore {
         }
 
         BlockState clickedState = level.getBlockState(clickedPos);
-        BlockPos workstationPos = clickedPos;
 
         // Only handle clicks on the Lectern workstation itself; allow vanilla sign editing when clicking signs
         if (!clickedState.is(Blocks.LECTERN)) {
             return InteractionResult.PASS;
         }
 
-        SignBlockEntity signEntity = findAttachedSign(level, workstationPos, clickedState);
+        SignBlockEntity signEntity = findAttachedSign(level, clickedPos, clickedState);
         if (signEntity == null) {
             return InteractionResult.PASS;
         }
@@ -184,56 +144,43 @@ public class LibrarianCore {
 
         ServerLevel serverLevel = (ServerLevel) level;
 
-        Villager villager = findAssignedVillager(serverLevel, workstationPos);
+        Villager villager = findAssignedVillager(serverLevel, clickedPos);
         if (villager == null) {
-            sendFailure(serverLevel, player, null, workstationPos, "No villager found with this workstation as their job station.");
+            sendFailure(serverLevel, player, null, clickedPos, "No villager found with this lectern as their job station.");
+            return InteractionResult.SUCCESS;
+        }
+
+        // If villager has no profession, assign Librarian
+        VillagerProfession prof = villager.getVillagerData().getProfession();
+        if (prof == VillagerProfession.NONE) {
+            prof = VillagerProfession.LIBRARIAN;
+            villager.setVillagerData(villager.getVillagerData().setProfession(prof));
+        }
+
+        if (prof != VillagerProfession.LIBRARIAN) {
+            sendFailure(serverLevel, player, villager, clickedPos, "Workstation must belong to a Librarian.");
             return InteractionResult.SUCCESS;
         }
 
         if (hasTradedForCurrentLevel(villager)) {
-            sendFailure(serverLevel, player, villager, workstationPos, "Villager has already been traded with at their current level.");
+            sendFailure(serverLevel, player, villager, clickedPos, "Villager has already been traded with at their current level.");
             return InteractionResult.SUCCESS;
         }
 
-        VillagerData villagerData = villager.getVillagerData();
-        VillagerProfession profession = villagerData.getProfession();
-
-        // 1. If Librarian, try matching an enchantment book first
-        if (profession == VillagerProfession.LIBRARIAN) {
-            MatchResult match = findMatchingEnchantment(serverLevel, rawLines);
-            if (match != null) {
-                boolean updated = applyEnchantedBookTrade(villager, match.holder(), match.level());
-                if (!updated) {
-                    sendFailure(serverLevel, player, villager, workstationPos, "Failed to update villager trades.");
-                    return InteractionResult.SUCCESS;
-                }
-                sendSuccess(serverLevel, player, villager, match);
-                return InteractionResult.SUCCESS;
-            }
-        }
-
-        // 2. Non-librarian (or librarian general item trades)
-        List<String> queries = cleanSignQueries(rawLines);
-        if (queries.isEmpty()) {
-            return InteractionResult.PASS;
-        }
-
-        MerchantOffer matchedOffer = findMatchingTradeOffer(villager, queries);
-        if (matchedOffer == null) {
-            String filterSummary = String.join(", ", queries);
-            String profName = Registry.VILLAGER_PROFESSION.getKey(profession).getPath().toLowerCase(Locale.ROOT);
-            sendFailure(serverLevel, player, villager, workstationPos,
-                    "No matching trade found for " + profName + " (level " + villagerData.getLevel() + ") for: " + filterSummary);
+        MatchResult match = findMatchingEnchantment(rawLines);
+        if (match == null) {
+            String filterSummary = String.join(", ", rawLines.stream().map(String::trim).filter(s -> !s.isEmpty()).toList());
+            sendFailure(serverLevel, player, villager, clickedPos, "No matching enchantment found for: " + filterSummary);
             return InteractionResult.SUCCESS;
         }
 
-        boolean updated = applyTradeOffer(villager, matchedOffer);
+        boolean updated = applyEnchantedBookTrade(villager, match.enchantment(), match.level());
         if (!updated) {
-            sendFailure(serverLevel, player, villager, workstationPos, "Failed to update villager trades.");
+            sendFailure(serverLevel, player, villager, clickedPos, "Failed to update villager trades.");
             return InteractionResult.SUCCESS;
         }
 
-        sendTradeSuccess(serverLevel, player, villager, matchedOffer);
+        sendSuccess(serverLevel, player, villager, match);
         return InteractionResult.SUCCESS;
     }
 
@@ -241,15 +188,14 @@ public class LibrarianCore {
         List<BlockPos> candidates = new ArrayList<>();
 
         if (lecternState.hasProperty(LecternBlock.FACING)) {
-            Direction facing = lecternState.getValue(LecternBlock.FACING);
-            candidates.add(lecternPos.relative(facing));
-            candidates.add(lecternPos.relative(facing.getOpposite()));
-        }
-
-        for (Direction dir : Direction.Plane.HORIZONTAL) {
-            BlockPos p = lecternPos.relative(dir);
-            if (!candidates.contains(p)) {
-                candidates.add(p);
+            Direction lecternFacing = lecternState.getValue(LecternBlock.FACING);
+            candidates.add(lecternPos.relative(lecternFacing));
+            candidates.add(lecternPos.relative(lecternFacing.getOpposite()));
+            candidates.add(lecternPos.relative(lecternFacing.getClockWise()));
+            candidates.add(lecternPos.relative(lecternFacing.getCounterClockWise()));
+        } else {
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                candidates.add(lecternPos.relative(dir));
             }
         }
 
@@ -260,7 +206,8 @@ public class LibrarianCore {
         for (BlockPos pos : candidates) {
             if (level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
                 List<String> lines = getSignLines(sign);
-                if (lines.stream().anyMatch(s -> !s.isBlank())) {
+                boolean hasText = lines.stream().anyMatch(s -> !s.isBlank());
+                if (hasText) {
                     return sign;
                 }
                 if (fallbackSign == null) {
@@ -268,34 +215,52 @@ public class LibrarianCore {
                 }
             }
         }
-
         return fallbackSign;
     }
 
     public static List<String> getSignLines(SignBlockEntity signEntity) {
         List<String> lines = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
-            String s = signEntity.getMessage(i, false).getString().trim();
-            if (!s.isEmpty()) {
-                lines.add(s);
+            Component c = signEntity.getMessage(i, false);
+            if (c != null) {
+                String s = c.getString().trim();
+                if (!s.isEmpty()) {
+                    lines.add(s);
+                }
             }
         }
         return lines;
     }
 
-    public static Villager findAssignedVillager(ServerLevel serverLevel, BlockPos lecternPos) {
-        AABB searchBox = new AABB(lecternPos).inflate(48.0);
-        List<Villager> villagers = serverLevel.getEntitiesOfClass(Villager.class, searchBox);
-        for (Villager candidate : villagers) {
-            Optional<GlobalPos> jobSiteOpt = candidate.getBrain().getMemory(MemoryModuleType.JOB_SITE);
-            if (jobSiteOpt.isPresent()) {
-                GlobalPos globalPos = jobSiteOpt.get();
-                if (globalPos.dimension().equals(serverLevel.dimension()) && globalPos.pos().equals(lecternPos)) {
-                    return candidate;
+    public static Villager findAssignedVillager(ServerLevel level, BlockPos lecternPos) {
+        AABB box = new AABB(lecternPos).inflate(16);
+        List<Villager> villagers = level.getEntitiesOfClass(Villager.class, box, v -> v.isAlive());
+
+        for (Villager v : villagers) {
+            Optional<GlobalPos> jobSite = v.getBrain().getMemory(MemoryModuleType.JOB_SITE);
+            if (jobSite.isPresent()) {
+                GlobalPos pos = jobSite.get();
+                if (pos.dimension().equals(level.dimension()) && pos.pos().equals(lecternPos)) {
+                    return v;
                 }
             }
         }
-        return null;
+
+        if (villagers.size() == 1) {
+            return villagers.get(0);
+        }
+
+        Villager closest = null;
+        double closestDist = Double.MAX_VALUE;
+        for (Villager v : villagers) {
+            double d = v.distanceToSqr(lecternPos.getX() + 0.5, lecternPos.getY() + 0.5, lecternPos.getZ() + 0.5);
+            if (d < closestDist && d <= 16.0) {
+                closestDist = d;
+                closest = v;
+            }
+        }
+
+        return closest;
     }
 
     public static boolean hasTradedForCurrentLevel(Villager villager) {
@@ -303,48 +268,32 @@ public class LibrarianCore {
         if (offers == null || offers.isEmpty()) {
             return false;
         }
-
-        int level = villager.getVillagerData().getLevel();
-        if (level == 1 && villager.getVillagerXp() == 0) {
-            for (MerchantOffer offer : offers) {
-                if (offer.getUses() > 0) {
-                    return true;
-                }
+        for (MerchantOffer offer : offers) {
+            if (offer.getUses() > 0) {
+                return true;
             }
-            return false;
         }
-
-        int size = offers.size();
-        if (size % 2 == 0 && size >= 2) {
-            return offers.get(size - 1).getUses() > 0 || offers.get(size - 2).getUses() > 0;
-        }
-        return offers.get(size - 1).getUses() > 0;
+        return false;
     }
 
-    public static MatchResult findMatchingEnchantment(ServerLevel serverLevel, List<String> signLines) {
-        List<Holder.Reference<Enchantment>> allEnchantments = Registry.ENCHANTMENT.holders().toList();
+    public static MatchResult findMatchingEnchantment(List<String> lines) {
+        List<Enchantment> allEnchantments = new ArrayList<>();
+        for (Enchantment ench : Registry.ENCHANTMENT) {
+            allEnchantments.add(ench);
+        }
 
-        for (String rawLine : signLines) {
-            String cleaned = rawLine.trim();
-            if (cleaned.isEmpty()) {
-                continue;
-            }
-            if (cleaned.contains(">")) {
-                cleaned = cleaned.split(">")[0].trim();
-            }
+        for (String line : lines) {
+            String cleaned = line.trim();
+            if (cleaned.isEmpty()) continue;
 
-            cleaned = cleaned.replaceAll("[-:]+$", "").trim();
-            if (cleaned.isEmpty()) {
-                continue;
-            }
-
-            int requestedLevel = 0;
+            Matcher matcher = LEVEL_PATTERN.matcher(cleaned);
             String textQuery;
-            Matcher levelMatcher = LEVEL_PATTERN.matcher(cleaned);
-            if (levelMatcher.matches()) {
-                textQuery = levelMatcher.group(1).trim();
+            int requestedLevel = -1;
+
+            if (matcher.matches()) {
+                textQuery = matcher.group(1).trim();
                 try {
-                    requestedLevel = Integer.parseInt(levelMatcher.group(2));
+                    requestedLevel = Integer.parseInt(matcher.group(2));
                 } catch (NumberFormatException ignored) {}
             } else {
                 textQuery = cleaned;
@@ -354,11 +303,10 @@ public class LibrarianCore {
                 continue;
             }
 
-            Holder.Reference<Enchantment> bestMatch = findEnchantmentHolder(allEnchantments, textQuery);
+            Enchantment bestMatch = findEnchantment(allEnchantments, textQuery);
             if (bestMatch != null) {
-                Enchantment ench = bestMatch.value();
-                int maxLevel = ench.getMaxLevel();
-                int minLevel = ench.getMinLevel();
+                int maxLevel = bestMatch.getMaxLevel();
+                int minLevel = bestMatch.getMinLevel();
                 int selectedLevel;
                 if (requestedLevel >= minLevel && requestedLevel <= maxLevel) {
                     selectedLevel = requestedLevel;
@@ -372,40 +320,34 @@ public class LibrarianCore {
         return null;
     }
 
-    public static Holder.Reference<Enchantment> findEnchantmentHolder(List<Holder.Reference<Enchantment>> allEnchantments, String textQuery) {
+    public static Enchantment findEnchantment(List<Enchantment> allEnchantments, String textQuery) {
         String q = textQuery.trim().toLowerCase(Locale.ROOT);
         String qClean = q.replaceAll("[^a-z0-9]", "");
         String qSpaced = q.replace("_", " ");
 
-        Holder.Reference<Enchantment> bestMatch = null;
+        Enchantment bestMatch = null;
         int bestPriority = Integer.MAX_VALUE;
         int bestLength = Integer.MAX_VALUE;
 
-        for (Holder.Reference<Enchantment> holder : allEnchantments) {
-            ResourceLocation id = holder.key().location();
+        for (Enchantment ench : allEnchantments) {
+            ResourceLocation id = Registry.ENCHANTMENT.getKey(ench);
+            if (id == null) continue;
             String path = id.getPath().toLowerCase(Locale.ROOT);
             String fullId = id.toString().toLowerCase(Locale.ROOT);
-            String desc = new TranslatableComponent(holder.value().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
+            String desc = new TranslatableComponent(ench.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
 
             String pathClean = path.replaceAll("[^a-z0-9]", "");
             String pathSpaced = path.replace("_", " ");
             String descClean = desc.replaceAll("[^a-z0-9]", "");
 
             int priority;
-            // Priority 1: Exact matches (path, spaced, clean alphanumeric, or description)
             if (path.equals(q) || pathSpaced.equals(qSpaced) || pathClean.equals(qClean) || desc.equals(q) || fullId.equals(q)) {
                 priority = 1;
-            }
-            // Priority 2: Direct prefix match
-            else if (path.startsWith(q) || pathSpaced.startsWith(qSpaced) || desc.startsWith(q) || fullId.startsWith(q)) {
+            } else if (path.startsWith(q) || pathSpaced.startsWith(qSpaced) || desc.startsWith(q) || fullId.startsWith(q)) {
                 priority = 2;
-            }
-            // Priority 3: Clean alphanumeric prefix match
-            else if (!qClean.isEmpty() && (pathClean.startsWith(qClean) || descClean.startsWith(qClean))) {
+            } else if (!qClean.isEmpty() && (pathClean.startsWith(qClean) || descClean.startsWith(qClean))) {
                 priority = 3;
-            }
-            // Priority 4: Contains substring match as fallback
-            else if (path.contains(q) || pathSpaced.contains(qSpaced) || desc.contains(q) || pathClean.contains(qClean)) {
+            } else if (path.contains(q) || pathSpaced.contains(qSpaced) || desc.contains(q) || pathClean.contains(qClean)) {
                 priority = 4;
             } else {
                 continue;
@@ -414,21 +356,21 @@ public class LibrarianCore {
             if (priority < bestPriority || (priority == bestPriority && path.length() < bestLength)) {
                 bestPriority = priority;
                 bestLength = path.length();
-                bestMatch = holder;
+                bestMatch = ench;
             }
         }
 
         return bestMatch;
     }
 
-    public static boolean applyEnchantedBookTrade(Villager villager, Holder.Reference<Enchantment> holder, int level) {
+    public static boolean applyEnchantedBookTrade(Villager villager, Enchantment ench, int level) {
         MerchantOffers offers = villager.getOffers();
         if (offers == null) {
             offers = new MerchantOffers();
         }
 
-        ItemStack bookStack = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(holder.value(), level));
-        int emeraldCost = getLowestPrice(holder, level);
+        ItemStack bookStack = EnchantedBookItem.createForEnchantment(new EnchantmentInstance(ench, level));
+        int emeraldCost = getLowestPrice(ench, level);
 
         int targetIndex = -1;
         if (!offers.isEmpty()) {
@@ -470,8 +412,10 @@ public class LibrarianCore {
         serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX(), villager.getY() + 1.0, villager.getZ(), 15, 0.5, 0.5, 0.5, 0.02);
         serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
 
-        String enchName = new TranslatableComponent(match.holder().value().getDescriptionId()).getString();
-        int lowestCost = getLowestPrice(match.holder(), match.level());
+        villager.addEffect(new MobEffectInstance(MobEffects.GLOWING, 10 * 20, 0, false, false));
+
+        String enchName = new TranslatableComponent(match.enchantment().getDescriptionId()).getString();
+        int lowestCost = getLowestPrice(match.enchantment(), match.level());
         player.displayClientMessage(new TextComponent("§a[Librarian Filter] Updated trade to: " + enchName + " " + match.level() + " (" + lowestCost + " Emeralds - Lowest Price)"), false);
     }
 
@@ -485,317 +429,5 @@ public class LibrarianCore {
         }
 
         player.displayClientMessage(new TextComponent("§c[Librarian Filter] " + reason), false);
-    }
-
-    public static List<String> cleanSignQueries(List<String> rawLines) {
-        List<String> queries = new ArrayList<>();
-        for (String line : rawLines) {
-            String cleaned = line.trim();
-            if (cleaned.contains(">")) {
-                cleaned = cleaned.split(">")[0].trim();
-            }
-            cleaned = cleaned.replaceAll("[-:]+$", "").trim();
-            if (!cleaned.isEmpty()) {
-                queries.add(cleaned);
-            }
-        }
-        return queries;
-    }
-
-    public static MerchantOffer findMatchingTradeOffer(Villager villager, List<String> queries) {
-        VillagerData villagerData = villager.getVillagerData();
-        VillagerProfession profession = villagerData.getProfession();
-        int level = villagerData.getLevel();
-
-        Int2ObjectMap<VillagerTrades.ItemListing[]> tradesMap = VillagerTrades.TRADES.get(profession);
-        if (tradesMap == null || tradesMap.isEmpty()) {
-            return null;
-        }
-
-        VillagerTrades.ItemListing[] listings = tradesMap.get(level);
-        if (listings == null || listings.length == 0) {
-            return null;
-        }
-
-        for (String query : queries) {
-            // 1. First check existing offers on the villager
-            MerchantOffers existingOffers = villager.getOffers();
-            if (existingOffers != null) {
-                for (MerchantOffer existing : existingOffers) {
-                    if (offerMatchesQuery(existing, query)) {
-                        return existing;
-                    }
-                }
-            }
-
-            // 2. Next sample possible trade listings for this profession and level
-            for (VillagerTrades.ItemListing listing : listings) {
-                // Sample multiple times to catch randomized trades like tipped arrows
-                for (int attempt = 0; attempt < 64; attempt++) {
-                    MerchantOffer offer = listing.getOffer(villager, villager.getRandom());
-                    if (offer != null && offerMatchesQuery(offer, query)) {
-                        return offer;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    public static boolean offerMatchesQuery(MerchantOffer offer, String query) {
-        if (offer == null) {
-            return false;
-        }
-        if (itemMatchesQuery(offer.getResult(), query)) {
-            return true;
-        }
-        if (itemMatchesQuery(offer.getCostA(), query)) {
-            return true;
-        }
-        if (!offer.getCostB().isEmpty() && itemMatchesQuery(offer.getCostB(), query)) {
-            return true;
-        }
-        return false;
-    }
-
-    public static boolean itemMatchesQuery(ItemStack stack, String rawQuery) {
-        if (stack == null || stack.isEmpty() || rawQuery == null || rawQuery.trim().isEmpty()) {
-            return false;
-        }
-
-        String q = rawQuery.trim().toLowerCase(Locale.ROOT);
-        String qClean = q.replaceAll("[^a-z0-9]", "");
-        String qSpaced = q.replace("_", " ");
-
-        // 1. Check item hover name (e.g. "Potato", "Arrow of Weakness", "Bread")
-        String hoverName = stack.getHoverName().getString().toLowerCase(Locale.ROOT);
-        if (hoverName.startsWith(q) || hoverName.startsWith(qSpaced) || hoverName.contains(q) || hoverName.contains(qSpaced)) {
-            return true;
-        }
-        for (String word : hoverName.split("\\s+")) {
-            if (word.startsWith(q) || word.startsWith(qClean)) {
-                return true;
-            }
-        }
-
-        // 2. Check item registry path (e.g. "potato", "tipped_arrow", "bread")
-        ResourceLocation itemId = Registry.ITEM.getKey(stack.getItem());
-        if (itemId != null) {
-            String path = itemId.getPath().toLowerCase(Locale.ROOT);
-            String fullId = itemId.toString().toLowerCase(Locale.ROOT);
-            if (path.startsWith(q) || path.replace("_", " ").startsWith(qSpaced) || path.contains(q) || fullId.startsWith(q)) {
-                return true;
-            }
-        }
-
-        // 3. Check item translation key description (e.g. "item.minecraft.potato")
-        String descName = new TranslatableComponent(stack.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
-        if (descName.startsWith(q) || descName.contains(q)) {
-            return true;
-        }
-        for (String word : descName.split("\\s+")) {
-            if (word.startsWith(q) || word.startsWith(qClean)) {
-                return true;
-            }
-        }
-
-        // 4. Check Potion & Mob Effects (crucial for Tipped Arrows, Potions)
-        Potion potion = PotionUtils.getPotion(stack);
-        if (potion != null && potion != Potions.EMPTY) {
-            ResourceLocation potionId = Registry.POTION.getKey(potion);
-            if (potionId != null) {
-                String potionPath = potionId.getPath().toLowerCase(Locale.ROOT);
-                if (potionPath.startsWith(q) || potionPath.contains(q) || potionId.toString().startsWith(q)) {
-                    return true;
-                }
-                String strippedPotion = potionPath.replaceFirst("^(long_|strong_)", "");
-                if (strippedPotion.startsWith(q) || strippedPotion.contains(q)) {
-                    return true;
-                }
-            }
-
-            for (MobEffectInstance effectInstance : potion.getEffects()) {
-                ResourceLocation effectId = Registry.MOB_EFFECT.getKey(effectInstance.getEffect());
-                if (effectId != null) {
-                    String effectPath = effectId.getPath().toLowerCase(Locale.ROOT);
-                    if (effectPath.startsWith(q) || effectPath.contains(q)) {
-                        return true;
-                    }
-                }
-                String effectName = new TranslatableComponent(effectInstance.getEffect().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
-                if (effectName.startsWith(q) || effectName.contains(q)) {
-                    return true;
-                }
-            }
-        }
-
-        for (MobEffectInstance effectInstance : PotionUtils.getCustomEffects(stack)) {
-            ResourceLocation effectId = Registry.MOB_EFFECT.getKey(effectInstance.getEffect());
-            if (effectId != null) {
-                String effectPath = effectId.getPath().toLowerCase(Locale.ROOT);
-                if (effectPath.startsWith(q) || effectPath.contains(q)) {
-                    return true;
-                }
-            }
-            String effectName = new TranslatableComponent(effectInstance.getEffect().getDescriptionId()).getString().toLowerCase(Locale.ROOT);
-            if (effectName.startsWith(q) || effectName.contains(q)) {
-                return true;
-            }
-        }
-
-        // 4b. Check Suspicious Stew effects (stored in NBT as 'Effects' with EffectId byte/int)
-        if (stack.is(Items.SUSPICIOUS_STEW) && stack.hasTag()) {
-            CompoundTag stewTag = stack.getTag();
-            if (stewTag != null && stewTag.contains("Effects", Tag.TAG_LIST)) {
-                net.minecraft.nbt.ListTag effectsList = stewTag.getList("Effects", Tag.TAG_COMPOUND);
-                for (int i = 0; i < effectsList.size(); i++) {
-                    CompoundTag effTag = effectsList.getCompound(i);
-                    int effectIdNum = 0;
-                    if (effTag.contains("EffectId", Tag.TAG_INT)) {
-                        effectIdNum = effTag.getInt("EffectId");
-                    } else if (effTag.contains("EffectId", Tag.TAG_BYTE)) {
-                        effectIdNum = effTag.getByte("EffectId") & 0xFF;
-                    }
-                    net.minecraft.world.effect.MobEffect effect = net.minecraft.world.effect.MobEffect.byId(effectIdNum);
-                    if (effect != null) {
-                        ResourceLocation effLoc = Registry.MOB_EFFECT.getKey(effect);
-                        if (effLoc != null) {
-                            String effPath = effLoc.getPath().toLowerCase(Locale.ROOT);
-                            if (effPath.startsWith(q) || effPath.contains(q) || effPath.replace("_", " ").startsWith(qSpaced)) {
-                                return true;
-                            }
-                        }
-                        String effName = new TranslatableComponent(effect.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
-                        if (effName.startsWith(q) || effName.contains(q)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        // 5. Check Enchantments on item (tools, armor, books)
-        Map<Enchantment, Integer> enchants = EnchantmentHelper.getEnchantments(stack);
-        for (Enchantment ench : enchants.keySet()) {
-            ResourceLocation enchId = Registry.ENCHANTMENT.getKey(ench);
-            if (enchId != null) {
-                String enchPath = enchId.getPath().toLowerCase(Locale.ROOT);
-                if (enchPath.startsWith(q) || enchPath.replace("_", " ").startsWith(qSpaced) || enchPath.contains(q)) {
-                    return true;
-                }
-            }
-            String enchName = new TranslatableComponent(ench.getDescriptionId()).getString().toLowerCase(Locale.ROOT);
-            if (enchName.startsWith(q) || enchName.contains(q)) {
-                return true;
-            }
-        }
-
-        // 6. Check NBT CompoundTag (tag keys, string values, nested tags)
-        CompoundTag tag = stack.getTag();
-        if (tag != null) {
-            if (tagContainsQuery(tag, q)) {
-                return true;
-            }
-        }
-
-        // 7. Check Item TagKey (e.g. #arrows, #wool, #planks)
-        if (stack.getTags().anyMatch(tagKey -> {
-            String tagPath = tagKey.location().getPath().toLowerCase(Locale.ROOT);
-            return tagPath.startsWith(q) || tagPath.replace("_", " ").startsWith(qSpaced) || tagPath.contains(q);
-        })) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private static boolean tagContainsQuery(CompoundTag tag, String q) {
-        for (String key : tag.getAllKeys()) {
-            if (key.toLowerCase(Locale.ROOT).startsWith(q)) {
-                return true;
-            }
-            byte type = tag.getTagType(key);
-            if (type == Tag.TAG_STRING) {
-                String val = tag.getString(key).toLowerCase(Locale.ROOT);
-                if (val.startsWith("minecraft:")) {
-                    val = val.substring("minecraft:".length());
-                }
-                if (val.startsWith(q) || val.contains(q)) {
-                    return true;
-                }
-            } else if (type == Tag.TAG_COMPOUND) {
-                if (tagContainsQuery(tag.getCompound(key), q)) {
-                    return true;
-                }
-            } else if (type == Tag.TAG_LIST) {
-                net.minecraft.nbt.ListTag list = tag.getList(key, Tag.TAG_COMPOUND);
-                for (int i = 0; i < list.size(); i++) {
-                    if (tagContainsQuery(list.getCompound(i), q)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    public static boolean applyTradeOffer(Villager villager, MerchantOffer newOffer) {
-        MerchantOffers offers = villager.getOffers();
-        if (offers == null) {
-            offers = new MerchantOffers();
-        }
-
-        for (MerchantOffer existing : offers) {
-            if (areOffersEquivalent(existing, newOffer)) {
-                return true;
-            }
-        }
-
-        int size = offers.size();
-        int targetIndex = -1;
-
-        if (size > 0) {
-            int startIndex = Math.max(0, size - 2);
-            targetIndex = size - 1;
-            for (int i = startIndex; i < size; i++) {
-                if (offers.get(i).getUses() == 0) {
-                    targetIndex = i;
-                    break;
-                }
-            }
-        }
-
-        MerchantOffers updatedOffers = new MerchantOffers();
-        updatedOffers.addAll(offers);
-        if (targetIndex >= 0 && targetIndex < updatedOffers.size()) {
-            updatedOffers.set(targetIndex, newOffer);
-        } else {
-            updatedOffers.add(newOffer);
-        }
-
-        villager.setOffers(updatedOffers);
-        return true;
-    }
-
-    private static boolean areOffersEquivalent(MerchantOffer a, MerchantOffer b) {
-        if (!ItemStack.isSameItemSameTags(a.getResult(), b.getResult())) return false;
-        if (a.getResult().getCount() != b.getResult().getCount()) return false;
-        if (!ItemStack.isSameItemSameTags(a.getCostA(), b.getCostA())) return false;
-        if (a.getCostA().getCount() != b.getCostA().getCount()) return false;
-        if (!ItemStack.isSameItemSameTags(a.getCostB(), b.getCostB())) return false;
-        if (a.getCostB().getCount() != b.getCostB().getCount()) return false;
-        return true;
-    }
-
-    private static void sendTradeSuccess(ServerLevel serverLevel, Player player, Villager villager, MerchantOffer offer) {
-        serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX(), villager.getY() + 1.0, villager.getZ(), 15, 0.5, 0.5, 0.5, 0.02);
-        serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
-
-        String resultDesc = offer.getResult().getHoverName().getString();
-        String costADesc = offer.getCostA().getCount() + " " + offer.getCostA().getHoverName().getString();
-        String costBDesc = !offer.getCostB().isEmpty() ? " + " + offer.getCostB().getCount() + " " + offer.getCostB().getHoverName().getString() : "";
-
-        player.displayClientMessage(new TextComponent("§a[Librarian Filter] Updated trade to: " + costADesc + costBDesc + " -> " + offer.getResult().getCount() + " " + resultDesc), false);
     }
 }
