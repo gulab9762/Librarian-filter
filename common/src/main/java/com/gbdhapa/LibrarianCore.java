@@ -33,6 +33,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
@@ -224,17 +225,17 @@ public class LibrarianCore {
 
     public static List<String> getSignLines(SignBlockEntity sign) {
         List<String> lines = new ArrayList<>();
-        SignText frontText = sign.getText(true);
-        for (int i = 0; i < 4; i++) {
-            String line = frontText.getMessage(i, false).getString().trim();
+        SignText frontText = sign.getText(SignTextSlot.FRONT);
+        for (Component c : frontText.getMessages(false)) {
+            String line = c.getString().trim();
             if (!line.isEmpty()) {
                 lines.add(line);
             }
         }
         if (lines.isEmpty()) {
-            SignText backText = sign.getText(false);
-            for (int i = 0; i < 4; i++) {
-                String line = backText.getMessage(i, false).getString().trim();
+            SignText backText = sign.getText(SignTextSlot.BACK);
+            for (Component c : backText.getMessages(false)) {
+                String line = c.getString().trim();
                 if (!line.isEmpty()) {
                     lines.add(line);
                 }

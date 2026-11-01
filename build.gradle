@@ -17,64 +17,74 @@ tasks.named('jar') {
 	enabled = false
 }
 
-forgix {
-	archiveBaseName = "librarian-filter-universal-${project.minecraft_version}"
-	archiveClassifier = ""
-	destinationDirectory = layout.buildDirectory.dir("libs")
-	autoRun = true
+def hasMultipleLoaders = [findProject(':fabric'), findProject(':neoforge'), findProject(':forge')].count { it != null } > 1
+
+if (hasMultipleLoaders) {
+	forgix {
+		archiveBaseName = "librarian-filter-universal-${project.minecraft_version}"
+		archiveClassifier = ""
+		destinationDirectory = layout.buildDirectory.dir("libs")
+		autoRun = true
+	}
 }
 
 gradle.projectsEvaluated {
-	forgix {
-		if (findProject(':fabric') != null) {
-			fabric {
-				def task = project(':fabric').tasks.findByName('remapJar') != null ? 
-					project(':fabric').tasks.named('remapJar') : project(':fabric').tasks.named('jar')
-				inputJar = task.flatMap { it.archiveFile }
+	if (hasMultipleLoaders) {
+		forgix {
+			if (findProject(':fabric') != null) {
+				fabric {
+					def task = project(':fabric').tasks.findByName('remapJar') != null ? 
+						project(':fabric').tasks.named('remapJar') : project(':fabric').tasks.named('jar')
+					inputJar = task.flatMap { it.archiveFile }
+				}
+			}
+			if (findProject(':neoforge') != null) {
+				neoforge {
+					def task = project(':neoforge').tasks.findByName('remapJar') != null ? 
+						project(':neoforge').tasks.named('remapJar') : project(':neoforge').tasks.named('jar')
+					inputJar = task.flatMap { it.archiveFile }
+				}
+			}
+			if (findProject(':forge') != null) {
+				forge {
+					def task = project(':forge').tasks.findByName('remapJar') != null ? 
+						project(':forge').tasks.named('remapJar') : project(':forge').tasks.named('jar')
+					inputJar = task.flatMap { it.archiveFile }
+				}
 			}
 		}
-		if (findProject(':neoforge') != null) {
-			neoforge {
-				def task = project(':neoforge').tasks.findByName('remapJar') != null ? 
-					project(':neoforge').tasks.named('remapJar') : project(':neoforge').tasks.named('jar')
-				inputJar = task.flatMap { it.archiveFile }
-			}
-		}
-		if (findProject(':forge') != null) {
-			forge {
-				def task = project(':forge').tasks.findByName('remapJar') != null ? 
-					project(':forge').tasks.named('remapJar') : project(':forge').tasks.named('jar')
-				inputJar = task.flatMap { it.archiveFile }
-			}
-		}
-	}
 
-	tasks.named('mergeJars').configure {
-		if (findProject(':fabric') != null) {
-			dependsOn(project(':fabric').tasks.findByName('remapJar') != null ? 
-				project(':fabric').tasks.named('remapJar') : project(':fabric').tasks.named('jar'))
-		}
-		if (findProject(':neoforge') != null) {
-			dependsOn(project(':neoforge').tasks.findByName('remapJar') != null ? 
-				project(':neoforge').tasks.named('remapJar') : project(':neoforge').tasks.named('jar'))
-		}
-		if (findProject(':forge') != null) {
-			dependsOn(project(':forge').tasks.findByName('remapJar') != null ? 
-				project(':forge').tasks.named('remapJar') : project(':forge').tasks.named('jar'))
+		tasks.named('mergeJars').configure {
+			if (findProject(':fabric') != null) {
+				dependsOn(project(':fabric').tasks.findByName('remapJar') != null ? 
+					project(':fabric').tasks.named('remapJar') : project(':fabric').tasks.named('jar'))
+			}
+			if (findProject(':neoforge') != null) {
+				dependsOn(project(':neoforge').tasks.findByName('remapJar') != null ? 
+					project(':neoforge').tasks.named('remapJar') : project(':neoforge').tasks.named('jar'))
+			}
+			if (findProject(':forge') != null) {
+				dependsOn(project(':forge').tasks.findByName('remapJar') != null ? 
+					project(':forge').tasks.named('remapJar') : project(':forge').tasks.named('jar'))
+			}
 		}
 	}
 }
 
-tasks.register('universalJar') {
-	group = 'forgix'
-	description = 'Merges all modloader jars into a single universal jar'
-	dependsOn('mergeJars')
+if (hasMultipleLoaders) {
+	tasks.register('universalJar') {
+		group = 'forgix'
+		description = 'Merges all modloader jars into a single universal jar'
+		dependsOn('mergeJars')
+	}
 }
 
 tasks.register('collectAllJars', Copy) {
 	group = 'build'
 	description = 'Collects loader jars and universal jar into build/libs'
-	dependsOn 'universalJar'
+	if (hasMultipleLoaders) {
+		dependsOn 'universalJar'
+	}
 
 	if (findProject(':fabric') != null) {
 		from(project(':fabric').tasks.findByName('remapJar') != null ? 
@@ -95,10 +105,19 @@ assemble.dependsOn('collectAllJars')
 
 tasks.register('copyToDownloads', Copy) {
 	group = 'distribution'
-	description = 'Copies all generated jars including universal jar to Downloads folder'
+	description = 'Copies all generated jars to Downloads folder'
 	dependsOn 'collectAllJars'
 	from layout.buildDirectory.dir("libs")
 	into "C:/Users/Gulab/Downloads"
 }
 
-assemble.finalizedBy('copyToDownloads')
+tasks.register('copyToMultiMC', Copy) {
+	group = 'distribution'
+	description = 'Copies generated jars to MultiMC instance if it exists'
+	dependsOn 'collectAllJars'
+	from layout.buildDirectory.dir("libs")
+	include "librarian-filter-*-${project.minecraft_version}*.jar"
+	into "D:/MultiMC/instances/26.4-snapshot-6/.minecraft/mods"
+}
+
+assemble.finalizedBy('copyToDownloads', 'copyToMultiMC')

@@ -37,6 +37,8 @@ import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.WallSignBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.phys.AABB;
 
 import java.lang.reflect.Field;
@@ -170,7 +172,7 @@ public class LibrarianCommands {
         level.setBlock(signPos.above(), Blocks.AIR.defaultBlockState(), 3);
 
         if (level.getBlockEntity(signPos) instanceof SignBlockEntity signEntity) {
-            signEntity.setText(signEntity.getText(true).setMessage(0, Component.literal(signText)), true);
+            signEntity.setText(signEntity.getText(SignTextSlot.FRONT).asMutable().setLine(0, Component.literal(signText)).asImmutable(), SignTextSlot.FRONT);
             signEntity.setChanged();
             level.sendBlockUpdated(signPos, signEntity.getBlockState(), signEntity.getBlockState(), 3);
         }
@@ -191,7 +193,7 @@ public class LibrarianCommands {
 
     private static void giveItem(ServerPlayer player, ItemStack stack) {
         if (!player.addItem(stack)) {
-            player.drop(stack, false);
+            player.drop(stack, false, Prediction.SERVER_ONLY);
         }
     }
 
