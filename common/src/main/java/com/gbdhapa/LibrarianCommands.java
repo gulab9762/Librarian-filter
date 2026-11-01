@@ -13,7 +13,7 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
@@ -90,7 +90,7 @@ public class LibrarianCommands {
         }
 
         ServerLevel level = source.getLevel();
-        BlockPos playerPos = player.blockPosition();
+        BlockPos playerPos = new BlockPos(player.x, player.y, player.z);
         Direction facing = player.getDirection();
         Direction opposite = facing.getOpposite();
 
@@ -128,7 +128,7 @@ public class LibrarianCommands {
         Villager villager = new Villager(EntityType.VILLAGER, level);
         villager.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
         villager.setVillagerData(villager.getVillagerData().setProfession(VillagerProfession.LIBRARIAN));
-        villager.getBrain().setMemory(MemoryModuleType.JOB_SITE, GlobalPos.of(level.dimension(), lecternPos));
+        villager.getBrain().setMemory(MemoryModuleType.JOB_SITE, GlobalPos.of(level.getDimension().getType(), lecternPos));
         level.addFreshEntity(villager);
 
         for (int i = 0; i < 3; i++) {
@@ -211,23 +211,23 @@ public class LibrarianCommands {
 
             String shortType = getSuggestedShortType(path);
 
-            MutableComponent entry = new TextComponent(" §e* Type: §f\"" + shortType + "\" §7(or \"" + path + "\") §8-> ")
+            Component entry = new TextComponent(" §e* Type: §f\"" + shortType + "\" §7(or \"" + path + "\") §8-> ")
                     .append(new TextComponent("§a" + desc + " " + maxLevel))
                     .append(new TextComponent(" §6[" + lowestCost + " Emeralds]"));
 
             source.sendSuccess(entry, false);
         }
 
-        MutableComponent nav = new TextComponent("§6----------------------------------------\n ");
+        TextComponent nav = new TextComponent("§6----------------------------------------\n ");
         if (page > 1) {
-            MutableComponent prevBtn = new TextComponent("§e[<< Prev] ")
-                    .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll list " + (page - 1))));
+            Component prevBtn = new TextComponent("§e[<< Prev] ")
+                    .setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll list " + (page - 1))));
             nav.append(prevBtn);
         }
         nav.append(new TextComponent("§7Page " + page + " of " + totalPages + " "));
         if (page < totalPages) {
-            MutableComponent nextBtn = new TextComponent("§e[Next >>]")
-                    .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll list " + (page + 1))));
+            Component nextBtn = new TextComponent("§e[Next >>]")
+                    .setStyle(new Style().setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/reroll list " + (page + 1))));
             nav.append(nextBtn);
         }
 

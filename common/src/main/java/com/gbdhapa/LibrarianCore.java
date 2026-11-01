@@ -123,7 +123,7 @@ public class LibrarianCore {
         BlockState clickedState = level.getBlockState(clickedPos);
 
         // Only handle clicks on the Lectern workstation itself; allow vanilla sign editing when clicking signs
-        if (!clickedState.is(Blocks.LECTERN)) {
+        if (clickedState.getBlock() != Blocks.LECTERN) {
             return InteractionResult.PASS;
         }
 
@@ -240,7 +240,7 @@ public class LibrarianCore {
             Optional<GlobalPos> jobSite = v.getBrain().getMemory(MemoryModuleType.JOB_SITE);
             if (jobSite.isPresent()) {
                 GlobalPos pos = jobSite.get();
-                if (pos.dimension().equals(level.dimension()) && pos.pos().equals(lecternPos)) {
+                if (pos.dimension().equals(level.getDimension().getType()) && pos.pos().equals(lecternPos)) {
                     return v;
                 }
             }
@@ -409,8 +409,8 @@ public class LibrarianCore {
     }
 
     private static void sendSuccess(ServerLevel serverLevel, Player player, Villager villager, MatchResult match) {
-        serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.getX(), villager.getY() + 1.0, villager.getZ(), 15, 0.5, 0.5, 0.5, 0.02);
-        serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
+        serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER, villager.x, villager.y + 1.0, villager.z, 15, 0.5, 0.5, 0.5, 0.02);
+        serverLevel.playSound(null, villager.x, villager.y + 1.0, villager.z, SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 1.0F, 1.0F);
 
         villager.addEffect(new MobEffectInstance(MobEffects.GLOWING, 10 * 20, 0, false, false));
 
@@ -421,8 +421,8 @@ public class LibrarianCore {
 
     private static void sendFailure(ServerLevel serverLevel, Player player, Villager villager, BlockPos fallbackPos, String reason) {
         if (villager != null) {
-            serverLevel.sendParticles(ParticleTypes.ANGRY_VILLAGER, villager.getX(), villager.getY() + 1.0, villager.getZ(), 8, 0.4, 0.4, 0.4, 0.02);
-            serverLevel.playSound(null, villager.getX(), villager.getY() + 1.0, villager.getZ(), SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 1.0F, 1.0F);
+            serverLevel.sendParticles(ParticleTypes.ANGRY_VILLAGER, villager.x, villager.y + 1.0, villager.z, 8, 0.4, 0.4, 0.4, 0.02);
+            serverLevel.playSound(null, villager.x, villager.y + 1.0, villager.z, SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 1.0F, 1.0F);
         } else if (fallbackPos != null) {
             serverLevel.sendParticles(ParticleTypes.ANGRY_VILLAGER, fallbackPos.getX() + 0.5, fallbackPos.getY() + 1.0, fallbackPos.getZ() + 0.5, 5, 0.3, 0.3, 0.3, 0.02);
             serverLevel.playSound(null, fallbackPos.getX() + 0.5, fallbackPos.getY() + 1.0, fallbackPos.getZ() + 0.5, SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 1.0F, 1.0F);
