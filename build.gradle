@@ -1,6 +1,7 @@
 plugins {
 	id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
 	id 'net.neoforged.moddev' version '2.0.141' apply false
+	id 'io.github.pacifistmc.forgix' version '2.0.0'
 }
 
 allprojects {
@@ -9,3 +10,79 @@ allprojects {
 	version = project.mod_version
 	group = project.maven_group
 }
+
+// Disable default root jar since this is a multi-project container
+tasks.named('jar') {
+	enabled = false
+}
+
+forgix {
+	archiveBaseName = "librarian-filter-universal-${project.minecraft_version}"
+	archiveClassifier = ""
+	destinationDirectory = layout.buildDirectory.dir("libs")
+	autoRun = true
+}
+
+gradle.projectsEvaluated {
+	forgix {
+		if (findProject(':fabric') != null) {
+			fabric {
+				def task = project(':fabric').tasks.findByName('remapJar') != null ? 
+					project(':fabric').tasks.named('remapJar') : project(':fabric').tasks.named('jar')
+				inputJar = task.flatMap { it.archiveFile }
+			}
+		}
+		if (findProject(':neoforge') != null) {
+			neoforge {
+				def task = project(':neoforge').tasks.findByName('remapJar') != null ? 
+					project(':neoforge').tasks.named('remapJar') : project(':neoforge').tasks.named('jar')
+				inputJar = task.flatMap { it.archiveFile }
+			}
+		}
+	}
+
+	tasks.named('mergeJars').configure {
+		if (findProject(':fabric') != null) {
+			dependsOn(project(':fabric').tasks.findByName('remapJar') != null ? 
+				project(':fabric').tasks.named('remapJar') : project(':fabric').tasks.named('jar'))
+		}
+		if (findProject(':neoforge') != null) {
+			dependsOn(project(':neoforge').tasks.findByName('remapJar') != null ? 
+				project(':neoforge').tasks.named('remapJar') : project(':neoforge').tasks.named('jar'))
+		}
+	}
+}
+
+tasks.register('universalJar') {
+	group = 'forgix'
+	description = 'Merges all modloader jars into a single universal jar'
+	dependsOn('mergeJars')
+}
+
+tasks.register('collectAllJars', Copy) {
+	group = 'build'
+	description = 'Collects loader jars and universal jar into build/libs'
+	dependsOn 'universalJar'
+
+	if (findProject(':fabric') != null) {
+		from(project(':fabric').tasks.findByName('remapJar') != null ? 
+			project(':fabric').tasks.named('remapJar') : project(':fabric').tasks.named('jar'))
+	}
+	if (findProject(':neoforge') != null) {
+		from(project(':neoforge').tasks.findByName('remapJar') != null ? 
+			project(':neoforge').tasks.named('remapJar') : project(':neoforge').tasks.named('jar'))
+	}
+	into layout.buildDirectory.dir("libs")
+}
+
+assemble.dependsOn('collectAllJars')
+
+tasks.register('copyToDownloads', Copy) {
+	group = 'distribution'
+	description = 'Copies all generated jars including universal jar to Downloads folder'
+	dependsOn 'collectAllJars'
+	from layout.buildDirectory.dir("libs")
+	into "C:/Users/Gulab/Downloads"
+}
+
+assemble.finalizedBy('copyToDownloads')

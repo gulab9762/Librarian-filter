@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] 已更新交易为: %s %s (%s 绿宝石 - 最低价格)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] 已更新交易为: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] 未找到匹配的物品或交易: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] 未找到匹配的附魔或交易: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s 无法提供附魔书。工作站必须是讲台。",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] %s 没有此物品的交易: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] 该村民在当前等级已被交易过。",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] 未找到以此工作站为工作地点的村民。",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] 更新村民交易失败。",
+  "text.librarian_filter.player_only": "§c该命令必须由玩家执行。",
+  "text.librarian_filter.creative_only": "§c该命令只能在创造模式下使用。",
+  "text.librarian_filter.setup_complete": "§a设置完成！已生成封闭村民并放置告示牌 [\"%s\"]。右键点击工作站即可重置交易！",
+  "text.librarian_filter.help": "§a[Librarian Filter] 使用 §e/reroll setup§a 生成测试交易间，使用 §e/reroll list§a 查看附魔，或使用 §e/reroll find <附魔>§a 寻找村民。"
+}

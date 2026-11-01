@@ -13,7 +13,6 @@ loom {
 	mods {
 		"librarian-filter" {
 			sourceSet sourceSets.main
-			sourceSet sourceSets.client
 		}
 	}
 }
@@ -22,7 +21,6 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	
 	implementation project(":common")
-	include project(":common")
 	
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
@@ -30,6 +28,10 @@ dependencies {
 
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 25
+}
+
+tasks.named('compileJava', JavaCompile) {
+    source(project(":common").sourceSets.main.allSource)
 }
 
 java {
@@ -43,6 +45,7 @@ java {
 }
 
 processResources {
+    from project(":common").sourceSets.main.resources
 	def version = project.version
 	inputs.property "version", version
 
