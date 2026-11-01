@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] Comercio actualizado a: %s %s (%s esmeraldas - precio mínimo)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] Comercio actualizado a: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] No se encontró ningún objeto o comercio coincidente para: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] No se encontró ningún encantamiento o comercio para: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s no puede ofrecer libros encantados. La mesa de trabajo debe ser un atril.",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] %s no tiene intercambios para el objeto: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] El aldeano ya ha comerciado en su nivel actual.",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] No se encontró ningún aldeano con esta mesa de trabajo.",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] Error al actualizar los comercios del aldeano.",
+  "text.librarian_filter.player_only": "§cEste comando solo puede ser ejecutado por un jugador.",
+  "text.librarian_filter.creative_only": "§cEste comando solo se puede usar en modo Creativo.",
+  "text.librarian_filter.setup_complete": "§a¡Configuración completa! Aldeano generado frente a la mesa con el cartel [\"%s\"]. ¡Haz clic derecho en la mesa para cambiar el comercio!",
+  "text.librarian_filter.help": "§a[Librarian Filter] Usa §e/reroll setup§a para crear una cabina de aldeano, §e/reroll list§a para ver libros o §e/reroll find <encantamiento>§a para localizarlos."
+}

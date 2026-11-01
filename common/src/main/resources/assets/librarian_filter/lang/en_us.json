@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] Updated trade to: %s %s (%s Emeralds - Lowest Price)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] Updated trade to: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] No matching item or trade found for: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] No matching enchantment or trade found for: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s cannot offer enchanted books. Workstation must be a Lectern.",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] %s has no trades for item: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] Villager has already been traded with at their current level.",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] No villager found with this workstation as their job station.",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] Failed to update villager trades.",
+  "text.librarian_filter.player_only": "§cThis command must be executed by a player.",
+  "text.librarian_filter.creative_only": "§cThis command can only be used in Creative mode.",
+  "text.librarian_filter.setup_complete": "§aSetup complete! Spawned an enclosed villager facing workstation with sign [\"%s\"]. Right-click workstation to reroll trade!",
+  "text.librarian_filter.help": "§a[Librarian Filter] Use §e/reroll setup§a to spawn a trapped villager booth, §e/reroll list§a for books, or §e/reroll find <enchantment>§a to locate villagers."
+}

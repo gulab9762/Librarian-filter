@@ -31,6 +31,7 @@ dependencies {
 }
 
 tasks.withType(Jar).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from project(":common").sourceSets.main.output
 }
 
@@ -40,4 +41,8 @@ processResources {
     filesMatching("META-INF/neoforge.mods.toml") {
         expand "version": project.version
     }
+}
+
+tasks.named('compileJava', JavaCompile) {
+    source(project(":common").sourceSets.main.allSource)
 }

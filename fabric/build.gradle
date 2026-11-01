@@ -13,7 +13,6 @@ loom {
 	mods {
 		"librarian-filter" {
 			sourceSet sourceSets.main
-			sourceSet sourceSets.client
 		}
 	}
 }
@@ -33,6 +32,10 @@ tasks.withType(JavaCompile).configureEach {
 	it.options.release = 21
 }
 
+tasks.named('compileJava', JavaCompile) {
+    source(project(":common").sourceSets.main.allSource)
+}
+
 java {
 	withSourcesJar()
 	sourceCompatibility = JavaVersion.VERSION_21
@@ -44,6 +47,7 @@ java {
 }
 
 processResources {
+    from project(":common").sourceSets.main.resources
 	def version = project.version
 	inputs.property "version", version
 

@@ -1,0 +1,15 @@
+{
+  "text.librarian_filter.success_enchantment": "§a[Librarian Filter] Échange mis à jour: %s %s (%s émeraudes - prix minimum)",
+  "text.librarian_filter.success_item": "§a[Librarian Filter] Échange mis à jour: %s (%s -> %s)",
+  "text.librarian_filter.not_found": "§c[Librarian Filter] Aucun objet ou échange correspondant trouvé pour: %s",
+  "text.librarian_filter.not_found_enchantment": "§c[Librarian Filter] Aucun enchantement ou échange trouvé pour: %s",
+  "text.librarian_filter.cannot_offer_books": "§c[Librarian Filter] %s ne peut pas offrir de livres enchantés. Le poste de travail doit être un pupitre.",
+  "text.librarian_filter.no_trades_for_item": "§c[Librarian Filter] %s n'a aucun échange pour l'objet: %s",
+  "text.librarian_filter.already_traded": "§c[Librarian Filter] Le villageois a déjà été échangé à son niveau actuel.",
+  "text.librarian_filter.no_villager": "§c[Librarian Filter] Aucun villageois trouvé associé à ce poste de travail.",
+  "text.librarian_filter.update_failed": "§c[Librarian Filter] Échec de la mise à jour des échanges du villageois.",
+  "text.librarian_filter.player_only": "§cCette commande doit être exécutée par un joueur.",
+  "text.librarian_filter.creative_only": "§cCette commande ne peut être utilisée qu'en mode Créatif.",
+  "text.librarian_filter.setup_complete": "§aConfiguration terminée! Villageois enfermé face au poste avec panneau [\"%s\"]. Clic droit sur le poste pour relancer!",
+  "text.librarian_filter.help": "§a[Librarian Filter] Utilisez §e/reroll setup§a pour créer une cabine, §e/reroll list§a pour les livres ou §e/reroll find <enchantement>§a pour localiser."
+}

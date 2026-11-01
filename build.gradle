@@ -84,3 +84,13 @@ tasks.register('collectAllJars', Copy) {
 }
 
 assemble.dependsOn('collectAllJars')
+
+tasks.register('copyToDownloads', Copy) {
+	group = 'distribution'
+	description = 'Copies all generated jars including universal jar to Downloads folder'
+	dependsOn 'collectAllJars'
+	from layout.buildDirectory.dir("libs")
+	into "C:/Users/Gulab/Downloads"
+}
+
+assemble.finalizedBy('copyToDownloads')
