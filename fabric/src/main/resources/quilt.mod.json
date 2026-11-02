@@ -1,0 +1,46 @@
+{
+	"schema_version": 1,
+	"quilt_loader": {
+		"group": "com.gbdhapa",
+		"id": "librarian-filter",
+		"version": "${version}",
+		"metadata": {
+			"name": "Easy librarian trade mod",
+			"description": "Mod to get desired enchantment book trade from librarian villager",
+			"contributors": {
+				"IGxxD!": "Owner"
+			},
+			"contact": {
+				"homepage": "https://fabricmc.net/",
+				"sources": "https://github.com/gulab9762/Librarian-filter",
+				"issues": "https://github.com/gulab9762/Librarian-filter/issues"
+			},
+			"license": "CC0-1.0",
+			"icon": "assets/librarian-filter/elt_icon.png"
+		},
+		"intermediate_mappings": "net.fabricmc:intermediary",
+		"entrypoints": {
+			"init": [
+				{
+					"adapter": "default",
+					"value": "com.gbdhapa.fabric.LibrarianfilterFabric"
+				}
+			]
+		},
+		"depends": [
+			{
+				"id": "quilt_loader",
+				"versions": ">=0.26.1"
+			},
+			{
+				"id": "minecraft",
+				"versions": "~26.4-"
+			},
+			{
+				"id": "fabric-api",
+				"versions": "*"
+			}
+		]
+	}
+}
+

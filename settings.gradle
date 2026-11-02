@@ -25,7 +25,8 @@ rootProject.name = 'librarian-filter'
 
 include 'common'
 include 'fabric'
+include 'quilt'
+include 'neoforge'
 
 // Multiloader modules (enabled only when loader versions are configured)
-// include 'neoforge'
 // include 'forge'

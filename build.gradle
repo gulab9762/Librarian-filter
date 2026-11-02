@@ -17,7 +17,7 @@ tasks.named('jar') {
 	enabled = false
 }
 
-def hasMultipleLoaders = [findProject(':fabric'), findProject(':neoforge'), findProject(':forge')].count { it != null } > 1
+def hasMultipleLoaders = [findProject(':fabric'), findProject(':neoforge'), findProject(':forge'), findProject(':quilt')].count { it != null } > 1
 
 if (hasMultipleLoaders) {
 	forgix {
@@ -52,6 +52,13 @@ gradle.projectsEvaluated {
 					inputJar = task.flatMap { it.archiveFile }
 				}
 			}
+			if (findProject(':quilt') != null) {
+				quilt {
+					def task = project(':quilt').tasks.findByName('remapJar') != null ? 
+						project(':quilt').tasks.named('remapJar') : project(':quilt').tasks.named('jar')
+					inputJar = task.flatMap { it.archiveFile }
+				}
+			}
 		}
 
 		tasks.named('mergeJars').configure {
@@ -66,6 +73,10 @@ gradle.projectsEvaluated {
 			if (findProject(':forge') != null) {
 				dependsOn(project(':forge').tasks.findByName('remapJar') != null ? 
 					project(':forge').tasks.named('remapJar') : project(':forge').tasks.named('jar'))
+			}
+			if (findProject(':quilt') != null) {
+				dependsOn(project(':quilt').tasks.findByName('remapJar') != null ? 
+					project(':quilt').tasks.named('remapJar') : project(':quilt').tasks.named('jar'))
 			}
 		}
 	}
@@ -97,6 +108,10 @@ tasks.register('collectAllJars', Copy) {
 	if (findProject(':forge') != null) {
 		from(project(':forge').tasks.findByName('remapJar') != null ? 
 			project(':forge').tasks.named('remapJar') : project(':forge').tasks.named('jar'))
+	}
+	if (findProject(':quilt') != null) {
+		from(project(':quilt').tasks.findByName('remapJar') != null ? 
+			project(':quilt').tasks.named('remapJar') : project(':quilt').tasks.named('jar'))
 	}
 	into layout.buildDirectory.dir("libs")
 }

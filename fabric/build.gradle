@@ -49,7 +49,7 @@ processResources {
 	def version = project.version
 	inputs.property "version", version
 
-	filesMatching("fabric.mod.json") {
+	filesMatching(["fabric.mod.json", "quilt.mod.json"]) {
 		expand "version": version
 	}
 }
