@@ -102,3 +102,14 @@ tasks.register('copyToDownloads', Copy) {
 }
 
 assemble.finalizedBy('copyToDownloads')
+
+tasks.register('copyToMultiMC', Copy) {
+	group = 'distribution'
+	description = 'Copies universal jar to MultiMC 26.2 instance'
+	dependsOn 'collectAllJars'
+	from layout.buildDirectory.dir("libs")
+	include "librarian-filter-universal-${project.minecraft_version}*.jar"
+	into "D:/MultiMC/instances/26.2/.minecraft/mods"
+}
+
+assemble.finalizedBy('copyToMultiMC')
