@@ -47,8 +47,6 @@ import net.minecraft.world.item.trading.VillagerTrade;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LecternBlock;
-import net.minecraft.world.level.block.StandingSignBlock;
-import net.minecraft.world.level.block.WallSignBlock;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
 import net.minecraft.world.level.block.state.BlockState;
@@ -186,28 +184,13 @@ public class LibrarianCore {
         }
 
         BlockState clickedState = level.getBlockState(clickedPos);
-        BlockPos workstationPos = clickedPos;
 
-        if (clickedState.getBlock() instanceof WallSignBlock) {
-            Direction attachedDir = clickedState.getValue(WallSignBlock.FACING).getOpposite();
-            BlockPos attachedPos = clickedPos.relative(attachedDir);
-            BlockState attachedState = level.getBlockState(attachedPos);
-            if (isWorkstation(attachedState)) {
-                workstationPos = attachedPos;
-                clickedState = attachedState;
-            }
-        } else if (clickedState.getBlock() instanceof StandingSignBlock) {
-            BlockPos belowPos = clickedPos.below();
-            BlockState belowState = level.getBlockState(belowPos);
-            if (isWorkstation(belowState)) {
-                workstationPos = belowPos;
-                clickedState = belowState;
-            }
-        }
-
+        // Only handle clicks on the workstation itself; allow vanilla sign editing when clicking signs
         if (!isWorkstation(clickedState)) {
             return InteractionResult.PASS;
         }
+
+        BlockPos workstationPos = clickedPos;
 
         SignBlockEntity signEntity = findAttachedSign(level, workstationPos, clickedState);
         if (signEntity == null) {
